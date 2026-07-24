@@ -130,6 +130,29 @@ class Subscription {
     return dates;
   }
 
+  /// [start] 부터 [end] 까지(양 끝 포함) 사이에 걸린 결제일들.
+  /// 캘린더에서 한 달치를 그릴 때 쓴다.
+  List<DateTime> billingDatesBetween(DateTime start, DateTime end) {
+    final dates = <DateTime>[];
+    var date = _anchor;
+    var guard = 0;
+    const maxSteps = 4000;
+
+    // 구간 앞쪽은 건너뛴다
+    while (date.isBefore(start) && guard++ < maxSteps) {
+      date = cycle.next(date);
+    }
+
+    while (!date.isAfter(end) && guard++ < maxSteps) {
+      // 해지한 뒤로는 청구되지 않는다
+      if (canceledAt != null && date.isAfter(canceledAt!)) break;
+      dates.add(date);
+      date = cycle.next(date);
+    }
+
+    return dates;
+  }
+
   /// 이 구독에 지금까지 쓴 누적 금액. 가격 변동 이력을 반영한다.
   Money totalSpentUntil(DateTime asOf) {
     var total = Money.zero(currency);

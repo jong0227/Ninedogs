@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format/formatters.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/theme/category_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/money.dart';
 import '../../data/models/subscription.dart';
@@ -50,15 +50,16 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                 const SizedBox(height: AppSpacing.xl),
                 Text('분야별', style: theme.textTheme.headlineSmall),
                 const SizedBox(height: AppSpacing.md),
-                for (var i = 0; i < spends.length; i++)
+                for (final spend in spends)
                   _CategoryRow(
-                    spend: spends[i],
+                    spend: spend,
                     total: total,
-                    color: rampColor(i),
-                    expanded: _expanded.contains(spends[i].label),
+                    color: CategoryColors.of(spend.category),
+                    expanded: _expanded.contains(spend.label),
                     onTap: () => setState(() {
-                      final label = spends[i].label;
-                      if (!_expanded.remove(label)) _expanded.add(label);
+                      if (!_expanded.remove(spend.label)) {
+                        _expanded.add(spend.label);
+                      }
                     }),
                   ),
               ],
@@ -68,14 +69,6 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
 
   static int _countAll(List<CategorySpend> spends) =>
       spends.fold(0, (sum, spend) => sum + spend.count);
-}
-
-/// 순위별 색. 빨강의 투명도만 낮춰가며 쓴다.
-Color rampColor(int index) {
-  const alphas = [1.0, 0.76, 0.58, 0.45, 0.35, 0.28, 0.22, 0.18];
-  return AppColors.accent.withValues(
-    alpha: index < alphas.length ? alphas[index] : 0.14,
-  );
 }
 
 class _TotalHeader extends StatelessWidget {
@@ -121,11 +114,11 @@ class _CompositionBar extends StatelessWidget {
         height: 10,
         child: Row(
           children: [
-            for (var i = 0; i < spends.length; i++)
+            for (final spend in spends)
               Expanded(
                 // flex 는 정수만 받으므로 최소 1을 보장한다.
-                flex: (spends[i].monthly.minor).clamp(1, 1 << 30),
-                child: Container(color: rampColor(i)),
+                flex: spend.monthly.minor.clamp(1, 1 << 30),
+                child: Container(color: CategoryColors.of(spend.category)),
               ),
           ],
         ),

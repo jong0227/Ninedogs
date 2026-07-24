@@ -162,6 +162,86 @@ void main() {
     });
   });
 
+  group('기간 내 결제일', () {
+    test('그 달에 걸린 결제일만 돌려준다', () {
+      final subscription = build(
+        startedAt: DateTime(2026, 1, 15),
+        prices: [
+          PricePoint(
+            effectiveFrom: DateTime(2026, 1, 15),
+            amount: const Money(10000),
+          ),
+        ],
+      );
+
+      final july = subscription.billingDatesBetween(
+        DateTime(2026, 7, 1),
+        DateTime(2026, 7, 31),
+      );
+      expect(july, [DateTime(2026, 7, 15)]);
+    });
+
+    test('시작 전 달에는 결제일이 없다', () {
+      final subscription = build(
+        startedAt: DateTime(2026, 7, 15),
+        prices: [
+          PricePoint(
+            effectiveFrom: DateTime(2026, 7, 15),
+            amount: const Money(10000),
+          ),
+        ],
+      );
+
+      expect(
+        subscription.billingDatesBetween(
+          DateTime(2026, 6, 1),
+          DateTime(2026, 6, 30),
+        ),
+        isEmpty,
+      );
+    });
+
+    test('해지한 뒤 달에는 결제일이 없다', () {
+      final subscription = build(
+        startedAt: DateTime(2026, 1, 15),
+        canceledAt: DateTime(2026, 3, 20),
+        prices: [
+          PricePoint(
+            effectiveFrom: DateTime(2026, 1, 15),
+            amount: const Money(10000),
+          ),
+        ],
+      );
+
+      expect(
+        subscription.billingDatesBetween(
+          DateTime(2026, 5, 1),
+          DateTime(2026, 5, 31),
+        ),
+        isEmpty,
+      );
+    });
+
+    test('주간 구독은 한 달에 네다섯 번 걸린다', () {
+      final subscription = build(
+        startedAt: DateTime(2026, 7, 1),
+        cycle: BillingCycle.weekly,
+        prices: [
+          PricePoint(
+            effectiveFrom: DateTime(2026, 7, 1),
+            amount: const Money(3000),
+          ),
+        ],
+      );
+
+      final july = subscription.billingDatesBetween(
+        DateTime(2026, 7, 1),
+        DateTime(2026, 7, 31),
+      );
+      expect(july.length, 5); // 1, 8, 15, 22, 29
+    });
+  });
+
   group('알림 설정', () {
     Subscription withReminders(List<int>? days) => Subscription(
       id: 'r',

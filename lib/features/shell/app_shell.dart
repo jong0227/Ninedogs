@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/notification_providers.dart';
 import '../../providers/subscription_providers.dart';
+import '../calendar/calendar_screen.dart';
 import '../home/home_screen.dart';
 import '../stats/stats_screen.dart';
 
@@ -54,7 +55,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     return Scaffold(
       body: IndexedStack(
         index: _index,
-        children: const [HomeScreen(), StatsScreen()],
+        children: const [HomeScreen(), CalendarScreen(), StatsScreen()],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
@@ -69,6 +70,11 @@ class _AppShellState extends ConsumerState<AppShell> {
             icon: Icon(Icons.subscriptions_outlined),
             selectedIcon: Icon(Icons.subscriptions, color: AppColors.accent),
             label: '구독',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month, color: AppColors.accent),
+            label: '캘린더',
           ),
           NavigationDestination(
             icon: Icon(Icons.donut_small_outlined),
