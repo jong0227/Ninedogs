@@ -2,6 +2,7 @@ package com.jong0227.ninedogs
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -20,6 +21,28 @@ import java.io.File
 class MainActivity : FlutterFragmentActivity() {
     private var pendingImport: String? = null
 
+    // 설정 화면의 "가져오기" 버튼에서 직접 파일을 고를 때 쓴다. 시스템 파일
+    // 선택기는 비동기(activity result)라, 고르는 동안 기다릴 Flutter 쪽
+    // result 콜백을 여기 잠깐 들고 있는다.
+    private var pendingPickResult: MethodChannel.Result? = null
+
+    private val pickBackupLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            val result = pendingPickResult
+            pendingPickResult = null
+            if (uri == null) {
+                // 사용자가 취소함
+                result?.success(null)
+                return@registerForActivityResult
+            }
+            val content = try {
+                contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() }
+            } catch (e: Exception) {
+                null
+            }
+            result?.success(content)
+        }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -34,6 +57,11 @@ class MainActivity : FlutterFragmentActivity() {
                     "takePendingImport" -> {
                         result.success(pendingImport)
                         pendingImport = null
+                    }
+                    // 설정 화면 "가져오기" 버튼: 시스템 파일 선택기를 띄운다.
+                    "pickBackupFile" -> {
+                        pendingPickResult = result
+                        pickBackupLauncher.launch(arrayOf("application/json"))
                     }
                     else -> result.notImplemented()
                 }

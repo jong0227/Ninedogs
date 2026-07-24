@@ -9,6 +9,7 @@ import '../../core/format/formatters.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/backup/backup_file.dart';
+import '../../data/backup/import_channel.dart';
 import '../../providers/backup_providers.dart';
 
 /// 백업 파일을 만들어 공유 시트로 넘긴다. 카톡 '나에게 보내기' 로 보내두면
@@ -186,12 +187,28 @@ Future<void> confirmAndImport(
   }
 }
 
-/// 설정 화면에서 복원 방법을 알려주는 안내.
-class ImportHowTo extends StatelessWidget {
+const _importChannel = ImportChannel();
+
+/// 시스템 파일 선택기로 백업 파일을 직접 골라 가져온다.
+///
+/// 카톡·메일에서 파일을 눌러 여는 경로([ImportChannel.takePending])와 달리,
+/// 설정 화면에서 바로 시작할 수 있다. 파일 선택 자체는 안드로이드 인텐트로
+/// 처리한다 — `file_picker` 패키지는 이 저장소에서 의도적으로 안 쓴다
+/// (share_plus/package_info_plus 와 win32 버전이 충돌한다).
+Future<void> pickAndImportBackup(BuildContext context, WidgetRef ref) async {
+  final raw = await _importChannel.pickAndRead();
+  if (raw == null) return; // 취소했거나 읽기 실패. 조용히 넘어간다.
+  if (!context.mounted) return;
+
+  await confirmAndImport(context, ref, raw);
+}
+
+/// 설정 화면의 "가져오기" 버튼과 안내.
+class ImportHowTo extends ConsumerWidget {
   const ImportHowTo({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
     return Container(
@@ -201,28 +218,39 @@ class ImportHowTo extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: theme.dividerColor),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.download_outlined,
-            size: 18,
-            color: AppColors.accent,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('복원하는 방법', style: theme.textTheme.titleMedium),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '카톡이나 메일에서 백업 파일(.json)을 누르고 '
-                  'Ninedogs로 열기를 선택하면 돼요.',
-                  style: theme.textTheme.labelMedium,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.download_outlined,
+                size: 18,
+                color: AppColors.accent,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('복원하는 방법', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      '아래 버튼으로 파일을 직접 고르거나, 카톡·메일에서 '
+                      '백업 파일(.json)을 누르고 Ninedogs로 열기를 선택해도 돼요.',
+                      style: theme.textTheme.labelMedium,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton.icon(
+            onPressed: () => pickAndImportBackup(context, ref),
+            icon: const Icon(Icons.folder_open_outlined, size: 18),
+            label: const Text('파일에서 가져오기'),
           ),
         ],
       ),

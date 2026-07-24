@@ -22,4 +22,18 @@ class ImportChannel {
       return null;
     }
   }
+
+  /// 설정 화면의 "가져오기" 버튼. 시스템 파일 선택기를 띄워 고른 파일을
+  /// 바로 읽어온다. 취소했거나 읽기를 실패하면 null.
+  Future<String?> pickAndRead() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return null;
+
+    try {
+      return await _channel.invokeMethod<String>('pickBackupFile');
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
 }
