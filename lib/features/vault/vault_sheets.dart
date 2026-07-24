@@ -25,6 +25,123 @@ Future<bool> showVaultUnlockSheet(BuildContext context) async {
   return result ?? false;
 }
 
+/// 마스터 암호를 바꾸는 시트. 저장된 계정 정보를 전부 새 키로 다시 암호화한다.
+Future<bool> showVaultChangePasswordSheet(BuildContext context) async {
+  final result = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => const _SheetFrame(child: _VaultChangePasswordForm()),
+  );
+  return result ?? false;
+}
+
+class _VaultChangePasswordForm extends ConsumerStatefulWidget {
+  const _VaultChangePasswordForm();
+
+  @override
+  ConsumerState<_VaultChangePasswordForm> createState() =>
+      _VaultChangePasswordFormState();
+}
+
+class _VaultChangePasswordFormState
+    extends ConsumerState<_VaultChangePasswordForm> {
+  final _current = TextEditingController();
+  final _next = TextEditingController();
+  final _confirm = TextEditingController();
+
+  bool _working = false;
+  String? _error;
+
+  static const _minLength = 8;
+
+  @override
+  void dispose() {
+    _current.dispose();
+    _next.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_next.text.length < _minLength) {
+      setState(() => _error = '새 암호는 $_minLength자 이상이어야 해요');
+      return;
+    }
+    if (_next.text != _confirm.text) {
+      setState(() => _error = '새 암호를 두 번 입력한 값이 서로 달라요');
+      return;
+    }
+
+    setState(() {
+      _error = null;
+      _working = true;
+    });
+
+    final changed = await ref
+        .read(vaultProvider.notifier)
+        .changePassword(_current.text, _next.text);
+
+    if (!mounted) return;
+    if (changed) {
+      Navigator.of(context).pop(true);
+    } else {
+      setState(() {
+        _working = false;
+        _error = '지금 쓰는 암호가 맞지 않아요';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('마스터 암호 변경', style: theme.textTheme.headlineSmall),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          '저장된 계정 정보를 모두 새 암호로 다시 암호화해요. '
+          '배우자도 새 암호를 알아야 열 수 있어요.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.textTheme.labelMedium?.color,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        TextField(
+          controller: _current,
+          obscureText: true,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: '지금 쓰는 암호',
+            errorText: _error,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        TextField(
+          controller: _next,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: '새 암호'),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        TextField(
+          controller: _confirm,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: '새 암호 한 번 더'),
+          onSubmitted: (_) => _submit(),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        FilledButton(
+          onPressed: _working ? null : _submit,
+          child: _working ? const _WorkingIndicator() : const Text('변경'),
+        ),
+      ],
+    );
+  }
+}
+
 /// 키보드가 올라와도 내용이 가리지 않도록 감싸는 틀.
 class _SheetFrame extends StatelessWidget {
   const _SheetFrame({required this.child});

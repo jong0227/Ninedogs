@@ -10,6 +10,7 @@ import '../../providers/subscription_providers.dart';
 import '../../widgets/service_icon.dart';
 import '../add/service_picker_screen.dart';
 import '../detail/subscription_detail_screen.dart';
+import '../settings/settings_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -21,7 +22,18 @@ class HomeScreen extends ConsumerWidget {
     final upcoming = ref.watch(upcomingBillingsProvider).take(3).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ninedogs')),
+      appBar: AppBar(
+        title: const Text('Ninedogs'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: '설정',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const ServicePickerScreen()),
@@ -188,14 +200,7 @@ class _UpcomingRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Row(
         children: [
-          ServiceIcon(
-            name: subscription.name,
-            brandColor: Color(subscription.brandColorValue ?? 0xFF6B7079),
-            serviceId: subscription.serviceId,
-            searchTerm: subscription.name,
-            imageUrl: subscription.iconUrl,
-            size: 36,
-          ),
+          ServiceIcon.forSubscription(subscription, size: 36),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(subscription.name, style: theme.textTheme.bodyMedium),
@@ -260,16 +265,7 @@ class _SubscriptionRow extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Row(
                 children: [
-                  ServiceIcon(
-                    name: subscription.name,
-                    brandColor: Color(
-                      subscription.brandColorValue ?? 0xFF6B7079,
-                    ),
-                    serviceId: subscription.serviceId,
-                    searchTerm: subscription.name,
-                    imageUrl: subscription.iconUrl,
-                    size: 44,
-                  ),
+                  ServiceIcon.forSubscription(subscription, size: 44),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(

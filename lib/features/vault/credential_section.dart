@@ -238,6 +238,36 @@ class _SecretRow extends StatefulWidget {
 class _SecretRowState extends State<_SecretRow> {
   late bool _hidden = widget.masked;
 
+  /// 복사한 비밀번호를 클립보드에 계속 두지 않는다.
+  static const _clipboardLifetime = Duration(seconds: 60);
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: widget.value));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.masked
+                ? '${widget.label}을(를) 복사했어요 · 1분 뒤 지워져요'
+                : '${widget.label}을(를) 복사했어요',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+
+    if (!widget.masked) return;
+
+    // 다른 걸 복사했다면 건드리지 않는다. 내가 넣은 값일 때만 지운다.
+    Future.delayed(_clipboardLifetime, () async {
+      final current = await Clipboard.getData(Clipboard.kTextPlain);
+      if (current?.text == widget.value) {
+        await Clipboard.setData(const ClipboardData(text: ''));
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -271,16 +301,7 @@ class _SecretRowState extends State<_SecretRow> {
           IconButton(
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.copy, size: 16),
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: widget.value));
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('${widget.label}을(를) 복사했어요'),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
+            onPressed: _copy,
           ),
         ],
       ),

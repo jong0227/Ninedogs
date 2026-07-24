@@ -47,14 +47,7 @@ class SubscriptionDetailScreen extends ConsumerWidget {
         children: [
           Row(
             children: [
-              ServiceIcon(
-                name: subscription.name,
-                brandColor: Color(subscription.brandColorValue ?? 0xFF6B7079),
-                serviceId: subscription.serviceId,
-                searchTerm: subscription.name,
-                imageUrl: subscription.iconUrl,
-                size: 64,
-              ),
+              ServiceIcon.forSubscription(subscription, size: 68),
               const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(

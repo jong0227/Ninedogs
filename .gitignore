@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# 릴리즈 서명 키와 비밀번호. 절대 커밋하지 말 것.
+# 키를 잃어버리면 스토어에 올린 앱을 다시는 업데이트할 수 없다.
+key.properties
+**/*.jks
+**/*.keystore

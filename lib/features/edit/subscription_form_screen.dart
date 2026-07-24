@@ -288,10 +288,8 @@ class _SubscriptionFormScreenState
                       service?.brandColor ??
                       _colorForName(_name.text),
                 ),
-                serviceId:
-                    widget.existing?.serviceId ??
-                    service?.id ??
-                    'custom:${_name.text.trim()}',
+                // serviceId 가 없으면 ServiceIcon 이 이름으로 캐시·검색한다
+                serviceId: widget.existing?.serviceId ?? service?.id,
                 searchTerm: service?.searchTerm ?? _name.text.trim(),
                 imageUrl: widget.existing?.iconUrl,
                 size: 56,

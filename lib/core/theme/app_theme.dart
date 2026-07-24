@@ -38,7 +38,7 @@ abstract final class AppTheme {
       brightness: brightness,
     ).copyWith(
       primary: AppColors.accent,
-      onPrimary: const Color(0xFF1A1206),
+      onPrimary: AppColors.onAccent,
       surface: surface,
       onSurface: textPrimary,
       outline: border,
@@ -76,7 +76,7 @@ abstract final class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.accent,
-          foregroundColor: const Color(0xFF1A1206),
+          foregroundColor: AppColors.onAccent,
           minimumSize: const Size.fromHeight(52),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
@@ -110,6 +110,13 @@ abstract final class AppTheme {
   static TextTheme _textTheme(TextTheme base, Color primary, Color secondary) {
     return base
         .copyWith(
+          // 온보딩처럼 화면을 여는 큰 제목
+          displayMedium: base.displayMedium?.copyWith(
+            fontSize: 34,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1.0,
+            height: 1.18,
+          ),
           displaySmall: base.displaySmall?.copyWith(
             fontSize: 32,
             fontWeight: FontWeight.w800,

@@ -1,7 +1,10 @@
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/icons/icon_resolver.dart';
+import '../data/update/update_checker.dart';
 
 /// main() 에서 실제 인스턴스로 override 한다.
 final sharedPreferencesProvider = Provider<SharedPreferences>(
@@ -29,6 +32,36 @@ final onboardingCompleteProvider =
     NotifierProvider<OnboardingCompleteNotifier, bool>(
       OnboardingCompleteNotifier.new,
     );
+
+/// 밝게/어둡게 설정. 기본은 어둡게 — 검정 바탕이 이 앱의 기본 모습이다.
+class ThemeModeNotifier extends Notifier<ThemeMode> {
+  static const _key = 'theme_mode_v1';
+
+  @override
+  ThemeMode build() {
+    final saved = ref.watch(sharedPreferencesProvider).getString(_key);
+    return ThemeMode.values
+        .where((mode) => mode.name == saved)
+        .firstOrNull ??
+        ThemeMode.dark;
+  }
+
+  Future<void> set(ThemeMode mode) async {
+    await ref.read(sharedPreferencesProvider).setString(_key, mode.name);
+    state = mode;
+  }
+}
+
+final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(
+  ThemeModeNotifier.new,
+);
+
+/// 설치된 앱의 버전. 예: '1.0.0'
+final appVersionProvider = FutureProvider<String>(
+  (ref) async => (await PackageInfo.fromPlatform()).version,
+);
+
+final updateCheckerProvider = Provider<UpdateChecker>((ref) => UpdateChecker());
 
 typedef IconRequest = ({String serviceId, String searchTerm});
 

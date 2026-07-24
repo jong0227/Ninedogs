@@ -29,9 +29,25 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _selected = <String>{};
   final _drafts = <String, _SubscriptionDraft>{};
+  final _search = TextEditingController();
 
   ServiceCategory? _filter;
+  String _query = '';
   bool _reviewing = false;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  /// 검색어가 있으면 검색이 우선, 없으면 카테고리 필터를 쓴다.
+  List<CatalogService> get _visibleServices {
+    if (_query.trim().isNotEmpty) return ServiceCatalog.search(_query);
+    return _filter == null
+        ? ServiceCatalog.all
+        : ServiceCatalog.byCategory(_filter!);
+  }
 
   void _toggle(CatalogService service) {
     setState(() {
@@ -83,50 +99,55 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Widget _buildPickStep() {
     final theme = Theme.of(context);
-    final services = _filter == null
-        ? ServiceCatalog.all
-        : ServiceCatalog.byCategory(_filter!);
+    final services = _visibleServices;
 
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.screenH,
-            AppSpacing.xl,
+            AppSpacing.xxl,
             AppSpacing.screenH,
             AppSpacing.lg,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('어떤 걸 구독하고 계세요?', style: theme.textTheme.displaySmall),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                '탭해서 골라주세요. 나중에 언제든 바꿀 수 있어요.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.textTheme.labelMedium?.color,
-                ),
-              ),
-            ],
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '어떤 걸\n구독하고 계세요?',
+              style: theme.textTheme.displayMedium,
+            ),
           ),
         ),
-        _CategoryFilterBar(
-          selected: _filter,
-          onChanged: (category) => setState(() => _filter = category),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+          child: TextField(
+            controller: _search,
+            decoration: const InputDecoration(
+              hintText: '서비스 검색',
+              prefixIcon: Icon(Icons.search),
+            ),
+            onChanged: (value) => setState(() => _query = value),
+          ),
         ),
+        const SizedBox(height: AppSpacing.lg),
+        if (_query.trim().isEmpty)
+          _CategoryFilterBar(
+            selected: _filter,
+            onChanged: (category) => setState(() => _filter = category),
+          ),
         Expanded(
           child: GridView.builder(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.screenH,
-              AppSpacing.lg,
+              AppSpacing.xl,
               AppSpacing.screenH,
               AppSpacing.xxl,
             ),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 120,
-              mainAxisSpacing: AppSpacing.md,
-              crossAxisSpacing: AppSpacing.md,
-              childAspectRatio: 0.82,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: AppSpacing.xl,
+              crossAxisSpacing: AppSpacing.lg,
+              childAspectRatio: 0.74,
             ),
             itemCount: services.length,
             itemBuilder: (context, index) {
@@ -140,17 +161,38 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
         ),
         _BottomBar(
-          child: FilledButton(
-            onPressed: _selected.isEmpty
-                ? null
-                : () => setState(() => _reviewing = true),
-            child: Text(
-              _selected.isEmpty ? '구독 중인 서비스를 골라주세요' : '${_selected.length}개 선택 · 다음',
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FilledButton(
+                onPressed: _selected.isEmpty
+                    ? null
+                    : () => setState(() => _reviewing = true),
+                child: Text(
+                  _selected.isEmpty
+                      ? '구독 중인 서비스를 골라주세요'
+                      : '${_selected.length}개 선택 · 다음',
+                ),
+              ),
+              // 목록에 없는 것만 쓰는 사람도 있으니 빈 채로 시작할 길을 열어둔다.
+              if (_selected.isEmpty)
+                TextButton(
+                  onPressed: _skip,
+                  child: const Text('나중에 직접 추가할게요'),
+                ),
+            ],
           ),
         ),
       ],
     );
+  }
+
+  Future<void> _skip() async {
+    await ref.read(onboardingCompleteProvider.notifier).complete();
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
   }
 
   // ── 2단계: 요금제·시작일 확인 ─────────────────────────────
@@ -322,60 +364,81 @@ class _ServiceTile extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: selected ? AppColors.accent : theme.dividerColor,
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                ServiceIcon.fromCatalog(service, size: 52),
-                if (selected)
-                  Positioned(
-                    right: -6,
-                    top: -6,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        children: [
+          // 원 자체가 셀 너비를 꽉 채우게 두고, 선택되면 바깥에 빨간 링을 두른다.
+          // 링 두께만큼 항상 자리를 비워둬서 선택할 때 크기가 튀지 않는다.
+          AspectRatio(
+            aspectRatio: 1,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final diameter = constraints.maxWidth;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      width: diameter,
+                      height: diameter,
+                      padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
-                        color: AppColors.accent,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: theme.colorScheme.surface,
-                          width: 2,
+                          color: selected
+                              ? AppColors.accent
+                              : Colors.transparent,
+                          width: 2.5,
                         ),
                       ),
-                      child: Icon(
-                        Icons.check,
-                        size: 13,
-                        color: theme.colorScheme.onPrimary,
+                      child: ServiceIcon.fromCatalog(
+                        service,
+                        size: diameter - 11,
+                        circular: true,
                       ),
                     ),
-                  ),
-              ],
+                    if (selected)
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: theme.scaffoldBackgroundColor,
+                              width: 2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.check,
+                            size: 13,
+                            color: AppColors.onAccent,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-              child: Text(
-                service.name,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Flexible(
+            child: Text(
+              service.name,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                height: 1.25,
+                color: theme.colorScheme.onSurface,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
