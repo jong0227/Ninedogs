@@ -7,21 +7,19 @@ import '../data/catalog/service_catalog.dart';
 import '../data/models/subscription.dart';
 import '../providers/app_providers.dart';
 
-/// 서비스 아이콘.
+/// 서비스 아이콘. 테두리도 받침 테두리선도 없이 동그란 모양이다.
 ///
-/// ## 아이콘은 절대 잘리지 않는다
+/// ## 잘리지도 않고, 이음매도 안 보이게
 ///
-/// 받침은 아이콘을 오려내는 **마스크가 아니다.** 받침을 깔고 그 위에
-/// 아이콘 원본을 통째로 축소해 얹는다. `ClipRRect` 같은 잘라내는 처리를
-/// **하지 않고**, `BoxFit.contain` 이라 비율도 그대로다.
-/// 로고가 모서리까지 꽉 찬 아이콘(워드마크형)도 안전하다.
+/// 아이콘을 그냥 원으로 오려내면 로고가 가장자리까지 찬 아이콘은 잘려 나간다.
+/// 그렇다고 작게 넣으면 원본 배경이 링처럼 남아 지저분해진다.
 ///
-/// ## 받침이 둥근 사각형인 이유
+/// 그래서 **아이콘의 가장자리 색을 뽑아 원 전체를 그 색으로 칠하고**, 그 위에
+/// 아이콘 원본을 통째로 얹는다. 바깥 색이 아이콘 테두리와 같으니 경계가
+/// 보이지 않고, 아이콘은 한 조각도 잘리지 않는다.
+/// (대부분의 앱 아이콘은 배경이 단색이라 완전히 매끄럽게 이어진다)
 ///
-/// 앱 아이콘은 정사각형이다. 원형 받침에 넣으면 정사각형이 원 안에
-/// 들어가는 한계가 지름의 70.7%(1/√2)라서 아이콘이 작아지고 배경만
-/// 넓어 보인다. 받침을 둥근 사각형으로 하면 78%까지 키울 수 있어
-/// 여백이 '패딩'처럼 자연스럽게 보인다.
+/// 색을 아직 못 읽었으면 브랜드 색으로 채워 두고, 읽히면 부드럽게 바뀐다.
 class ServiceIcon extends ConsumerWidget {
   const ServiceIcon({
     super.key,
@@ -31,14 +29,14 @@ class ServiceIcon extends ConsumerWidget {
     this.searchTerm,
     this.imageUrl,
     this.size = 56,
-    this.circular = false,
+    this.circular = true,
   });
 
   ServiceIcon.fromCatalog(
     CatalogService service, {
     super.key,
     this.size = 56,
-    this.circular = false,
+    this.circular = true,
   }) : name = service.name,
        brandColor = Color(service.brandColor),
        serviceId = service.id,
@@ -51,7 +49,7 @@ class ServiceIcon extends ConsumerWidget {
     Subscription subscription, {
     Key? key,
     double size = 56,
-    bool circular = false,
+    bool circular = true,
   }) {
     final catalog = subscription.serviceId == null
         ? null
@@ -81,14 +79,8 @@ class ServiceIcon extends ConsumerWidget {
 
   final double size;
 
-  /// 받침 모양. 기본은 둥근 사각형이고, true 면 원형이다.
-  /// 어느 쪽이든 아이콘 자체는 잘리지 않는다.
+  /// 원형으로 자를지. false 면 모서리만 둥근 사각형.
   final bool circular;
-
-  /// 받침 대비 아이콘 크기.
-  /// 원형은 1/√2(70.7%)가 한계라 여백을 두고 64%,
-  /// 둥근 사각형은 모서리 곡률을 피하는 선에서 78%까지 키운다.
-  double get _iconRatio => circular ? 0.64 : 0.78;
 
   /// 아이콘 URL 캐시 키. 카탈로그에 없는 서비스도 이름으로 캐시해서
   /// 직접 추가한 구독도 목록에서 아이콘이 나온다.
@@ -100,72 +92,72 @@ class ServiceIcon extends ConsumerWidget {
 
   String get _term => (searchTerm ?? name).trim();
 
+  /// 정사각형이 원 안에 완전히 들어가는 한계는 지름의 70.7%(1/√2).
+  /// 딱 그만큼 쓰면 네 귀퉁이가 원에 닿아 아슬아슬하므로 조금 줄인다.
+  static const _fitRatio = 0.70;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-
     final url =
         imageUrl ??
         (_term.isEmpty
             ? null
             : ref
                   .watch(
-                    iconUrlProvider((serviceId: _cacheId, searchTerm: _term)),
+                    iconUrlProvider((
+                      serviceId: _cacheId,
+                      searchTerm: _term,
+                      domain: ServiceCatalog.domainOf(serviceId),
+                    )),
                   )
                   .value);
 
-    // 브랜드 색을 아주 옅게만 깔아 서비스마다 다른 느낌을 주되,
-    // 화면 전체가 알록달록해지지 않게 10%만 섞는다.
-    final plate = Color.alphaBlend(
-      brandColor.withValues(alpha: 0.10),
-      theme.colorScheme.surface,
-    );
+    // 아이콘 테두리에서 뽑은 색. 아직 못 읽었으면 브랜드 색으로 버틴다.
+    final edge = url == null
+        ? null
+        : ref.watch(iconEdgeColorProvider(url)).value;
+    final fill = edge ?? brandColor;
 
-    final inner = size * _iconRatio;
+    final inner = size * _fitRatio;
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
       width: size,
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
+        color: fill,
         shape: circular ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: circular ? null : BorderRadius.circular(size * 0.28),
-        color: plate,
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.6)),
+        borderRadius: circular ? null : BorderRadius.circular(size * 0.26),
       ),
       child: url == null
-          ? _monogram(context, plate)
+          ? _monogram(context)
           : CachedNetworkImage(
               imageUrl: url,
               width: inner,
               height: inner,
-              // contain + 클립 없음 = 아이콘의 어느 부분도 잘리지 않는다
+              // contain + 클립 없음 = 아이콘이 잘리지 않는다.
+              // 바깥은 위에서 칠한 테두리 색이라 이어져 보인다.
               fit: BoxFit.contain,
               fadeInDuration: const Duration(milliseconds: 180),
-              placeholder: (_, _) => _monogram(context, plate),
-              errorWidget: (_, _, _) => _monogram(context, plate),
+              placeholder: (_, _) => SizedBox(width: inner, height: inner),
+              errorWidget: (_, _, _) => _monogram(context),
             ),
     );
   }
 
-  /// 아이콘을 못 받았을 때 보여주는 첫 글자.
-  Widget _monogram(BuildContext context, Color plate) {
+  /// 아이콘도 파비콘도 못 받았을 때의 마지막 수단.
+  Widget _monogram(BuildContext context) {
     final initial = name.trim().isEmpty ? '?' : name.trim().characters.first;
-
-    // 브랜드 색이 받침과 너무 비슷하면(예: 다크 모드의 검정 브랜드)
-    // 글자가 묻히므로 기본 글자색으로 되돌린다.
-    final gap =
-        (brandColor.computeLuminance() - plate.computeLuminance()).abs();
-    final color = gap < 0.15
-        ? Theme.of(context).colorScheme.onSurface
-        : brandColor;
 
     return Text(
       initial,
       style: TextStyle(
-        color: color,
-        fontSize: size * 0.34,
-        fontWeight: FontWeight.w800,
+        color: brandColor.computeLuminance() > 0.5
+            ? Colors.black87
+            : Colors.white,
+        fontSize: size * 0.38,
+        fontWeight: FontWeight.w700,
       ),
     );
   }

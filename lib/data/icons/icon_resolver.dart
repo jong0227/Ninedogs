@@ -25,7 +25,14 @@ class IconResolver {
   static const _country = 'kr';
 
   /// [searchTerm] 에 해당하는 아이콘 URL. 못 찾으면 null.
-  Future<String?> resolve(String serviceId, String searchTerm) async {
+  ///
+  /// App Store 검색이 실패하면 [domain] 의 파비콘으로 넘어간다.
+  /// 화질은 떨어지지만 첫 글자만 보여주는 것보다 훨씬 알아보기 쉽다.
+  Future<String?> resolve(
+    String serviceId,
+    String searchTerm, {
+    String? domain,
+  }) async {
     if (_memoryCache.containsKey(serviceId)) return _memoryCache[serviceId];
 
     final cached = await _readCache(serviceId);
@@ -34,10 +41,17 @@ class IconResolver {
       return cached;
     }
 
-    final url = await _lookup(searchTerm);
+    final url = await _lookup(searchTerm) ?? faviconUrl(domain);
     _memoryCache[serviceId] = url;
     if (url != null) await _writeCache(serviceId, url);
     return url;
+  }
+
+  /// 도메인 파비콘 주소. PNG 로 돌려주는 구글 서비스를 쓴다.
+  /// (.ico 를 주는 곳들은 플러터가 디코딩하지 못한다)
+  static String? faviconUrl(String? domain) {
+    if (domain == null || domain.isEmpty) return null;
+    return 'https://www.google.com/s2/favicons?domain=$domain&sz=128';
   }
 
   Future<String?> _lookup(String searchTerm) async {

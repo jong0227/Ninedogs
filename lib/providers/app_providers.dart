@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart' show ThemeMode;
+import 'package:flutter/material.dart' show Color, ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/icons/icon_palette.dart';
 import '../data/icons/icon_resolver.dart';
 import '../data/update/update_checker.dart';
 
@@ -63,14 +64,24 @@ final appVersionProvider = FutureProvider<String>(
 
 final updateCheckerProvider = Provider<UpdateChecker>((ref) => UpdateChecker());
 
-typedef IconRequest = ({String serviceId, String searchTerm});
+typedef IconRequest = ({String serviceId, String searchTerm, String? domain});
 
-/// 서비스별 아이콘 URL. 실패하면 null 이고 화면에서는 대체 타일을 그린다.
+/// 서비스별 아이콘 URL. 실패하면 null 이고 화면에서는 첫 글자를 그린다.
 final iconUrlProvider = FutureProvider.family<String?, IconRequest>((
   ref,
   request,
 ) {
   return ref
       .watch(iconResolverProvider)
-      .resolve(request.serviceId, request.searchTerm);
+      .resolve(
+        request.serviceId,
+        request.searchTerm,
+        domain: request.domain,
+      );
 });
+
+/// 아이콘 가장자리 색. 원으로 자를 때 바깥을 이 색으로 채워
+/// 아이콘이 잘리지 않으면서도 이음매가 안 보이게 한다.
+final iconEdgeColorProvider = FutureProvider.family<Color?, String>(
+  (ref, url) => IconPalette.edgeColor(url),
+);

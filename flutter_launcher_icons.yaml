@@ -1,17 +1,18 @@
 # 런처 아이콘 생성 설정.
 #
-# 원본 PNG 는 코드로 그린다:
-#   flutter test test/tools/generate_app_icon_test.dart
-# 그 다음 이 설정으로 각 밀도의 아이콘을 만든다:
+# 원본은 assets/icon/source_dog.png 이고,
+# tool/crop_icon.ps1 이 여기서 쓰는 두 PNG 를 만든다.
+# 그 다음 각 밀도로 변환한다:
 #   dart run flutter_launcher_icons
 flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon/app_icon.png"
 
-  # 안드로이드 적응형 아이콘: 배경은 검정 단색, 전경은 개만 있는 버전.
-  # 기기가 원형·둥근사각형 등으로 마스킹하므로 전경은 여백을 넉넉히 뒀다.
-  adaptive_icon_background: "#000000"
+  # 적응형 아이콘 배경색은 원본 그림의 바탕색과 똑같이 맞춘다.
+  # 순수 검정(#000000)으로 두면 전경 이미지의 사각형 가장자리가
+  # 배경과 미세하게 달라 네모난 테두리로 보인다.
+  adaptive_icon_background: "#0C0B0B"
   adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
 
   min_sdk_android: 21

@@ -388,23 +388,25 @@ class _ServiceTile extends StatelessWidget {
                 return Stack(
                   clipBehavior: Clip.none,
                   children: [
+                    // 선택되면 아이콘 바깥에 빨간 링을 두른다. 고르지 않았을
+                    // 때도 링 두께만큼 자리를 비워둬서 크기가 튀지 않는다.
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 160),
                       width: diameter,
                       height: diameter,
-                      padding: const EdgeInsets.all(2),
+                      padding: const EdgeInsets.all(2.5),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(diameter * 0.30),
+                        shape: BoxShape.circle,
                         border: Border.all(
                           color: selected
                               ? AppColors.accent
                               : Colors.transparent,
-                          width: 2,
+                          width: 2.5,
                         ),
                       ),
                       child: ServiceIcon.fromCatalog(
                         service,
-                        size: diameter - 8,
+                        size: diameter - 10,
                       ),
                     ),
                     if (selected)
