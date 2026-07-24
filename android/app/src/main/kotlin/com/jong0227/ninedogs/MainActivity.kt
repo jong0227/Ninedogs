@@ -2,7 +2,7 @@ package com.jong0227.ninedogs
 
 import android.content.Intent
 import android.net.Uri
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
@@ -13,7 +13,9 @@ import io.flutter.plugin.common.MethodChannel
  * 파일을 통째로 읽어 문자열로 전달한다. 백업 파일은 수십 KB 수준이라
  * 메모리에 올려도 문제없다.
  */
-class MainActivity : FlutterActivity() {
+// local_auth 는 생체인증 다이얼로그를 띄우려면 FragmentActivity 를 요구한다.
+// 그래서 FlutterActivity 가 아니라 FlutterFragmentActivity 를 상속한다.
+class MainActivity : FlutterFragmentActivity() {
     private var pendingImport: String? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

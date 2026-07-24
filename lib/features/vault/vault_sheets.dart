@@ -205,6 +205,8 @@ class _VaultSetupFormState extends ConsumerState<_VaultSetupForm> {
 
     await ref.read(vaultProvider.notifier).setUp(password);
 
+    if (!mounted) return;
+    await maybeOfferBiometrics(context, ref);
     if (mounted) Navigator.of(context).pop(true);
   }
 
@@ -303,9 +305,35 @@ class _VaultUnlockFormState extends ConsumerState<_VaultUnlockForm> {
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+
+    // 생체인증을 켜뒀으면 시트가 열리자마자 바로 물어본다.
+    // 암호를 칠 준비를 하다가 뒤늦게 지문 창이 뜨면 흐름이 끊긴다.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (await ref.read(biometricEnabledProvider.future)) {
+        if (mounted) _tryBiometrics();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _password.dispose();
     super.dispose();
+  }
+
+  Future<void> _tryBiometrics() async {
+    setState(() => _working = true);
+    final opened = await ref.read(vaultProvider.notifier).unlockWithBiometrics();
+
+    if (!mounted) return;
+    if (opened) {
+      Navigator.of(context).pop(true);
+    } else {
+      // 취소했을 수도 있으니 오류로 몰아붙이지 않는다. 암호로 넘어가면 된다.
+      setState(() => _working = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -318,7 +346,8 @@ class _VaultUnlockFormState extends ConsumerState<_VaultUnlockForm> {
 
     if (!mounted) return;
     if (opened) {
-      Navigator.of(context).pop(true);
+      await maybeOfferBiometrics(context, ref);
+      if (mounted) Navigator.of(context).pop(true);
     } else {
       setState(() {
         _working = false;
@@ -363,9 +392,51 @@ class _VaultUnlockFormState extends ConsumerState<_VaultUnlockForm> {
           onPressed: _working ? null : _submit,
           child: _working ? const _WorkingIndicator() : const Text('열기'),
         ),
+        // 생체인증이 실패하거나 취소됐을 때 다시 시도할 수 있게 남겨둔다
+        if (ref.watch(biometricEnabledProvider).value ?? false)
+          TextButton.icon(
+            onPressed: _working ? null : _tryBiometrics,
+            icon: const Icon(Icons.fingerprint, size: 18),
+            label: const Text('지문으로 열기'),
+          ),
       ],
     );
   }
+}
+
+/// 암호로 연 직후, 다음부터는 지문으로 열지 물어본다.
+///
+/// 처음부터 묻지 않는 이유: 마스터 암호를 한 번도 안 쳐본 사람에게
+/// 생체인증을 권하면 무엇을 여는 열쇠인지 감이 오지 않는다.
+Future<void> maybeOfferBiometrics(BuildContext context, WidgetRef ref) async {
+  final available = await ref.read(biometricAvailableProvider.future);
+  final enabled = await ref.read(biometricEnabledProvider.future);
+  if (!available || enabled || !context.mounted) return;
+
+  final accepted =
+      await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('다음부터 지문으로 열까요?'),
+          content: const Text(
+            '마스터 암호 대신 지문이나 얼굴로 바로 열 수 있어요. '
+            '열쇠는 이 기기 안에만 저장되고 밖으로 나가지 않아요.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('나중에'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('사용할게요'),
+            ),
+          ],
+        ),
+      ) ??
+      false;
+
+  if (accepted) await ref.read(vaultProvider.notifier).enableBiometrics();
 }
 
 /// 키를 만드는 동안(PBKDF2) 잠깐 도는 표시.

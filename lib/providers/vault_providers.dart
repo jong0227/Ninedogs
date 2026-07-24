@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/credential.dart';
 import '../data/repository/credential_repository.dart';
+import '../data/security/biometric_gate.dart';
 import '../data/security/vault_crypto.dart';
 import 'app_providers.dart';
 
@@ -28,6 +29,19 @@ class VaultUnlocked extends VaultState {
 
 final credentialRepositoryProvider = Provider<CredentialRepository>(
   (ref) => LocalCredentialRepository(ref.watch(sharedPreferencesProvider)),
+);
+
+final biometricGateProvider = Provider<BiometricGate>((ref) => BiometricGate());
+
+/// 이 기기에서 지문·얼굴을 쓸 수 있는지.
+final biometricAvailableProvider = FutureProvider<bool>(
+  (ref) => ref.watch(biometricGateProvider).isAvailable(),
+);
+
+/// 생체인증으로 열도록 설정해 뒀는지.
+/// 켜고 끌 때 invalidate 해서 화면이 따라오게 한다.
+final biometricEnabledProvider = FutureProvider<bool>(
+  (ref) => ref.watch(biometricGateProvider).isEnabled(),
 );
 
 /// PBKDF2 반복 횟수. 키 유도를 일부러 느리게 만들어 무차별 대입을 막는다.
@@ -109,6 +123,31 @@ class VaultNotifier extends AsyncNotifier<VaultState> {
   /// 키를 메모리에서 버린다. 앱을 백그라운드로 보낼 때도 부른다.
   void lock() {
     if (_metadata != null) state = const AsyncData(VaultLocked());
+  }
+
+  /// 지문·얼굴로 연다. 인증을 취소하거나 설정해 두지 않았으면 false.
+  Future<bool> unlockWithBiometrics() async {
+    final keyBytes = await ref.read(biometricGateProvider).unlock();
+    if (keyBytes == null) return false;
+
+    return unlockWithKeyBytes(keyBytes);
+  }
+
+  /// 지금 열려 있는 키를 기기 보안 저장소에 넣어 다음부터 생체인증으로 열게 한다.
+  Future<bool> enableBiometrics() async {
+    final current = crypto;
+    if (current == null) return false;
+
+    await ref
+        .read(biometricGateProvider)
+        .enable(await current.exportKeyBytes());
+    ref.invalidate(biometricEnabledProvider);
+    return true;
+  }
+
+  Future<void> disableBiometrics() async {
+    await ref.read(biometricGateProvider).disable();
+    ref.invalidate(biometricEnabledProvider);
   }
 
   /// 마스터 암호 변경. 저장된 계정 정보를 전부 새 키로 다시 암호화한다.

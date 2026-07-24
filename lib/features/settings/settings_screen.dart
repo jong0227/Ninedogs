@@ -146,6 +146,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 }
               },
             ),
+            if (ref.watch(biometricAvailableProvider).value ?? false)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('지문·얼굴로 열기'),
+                subtitle: Text(
+                  vault is VaultUnlocked
+                      ? '열쇠는 이 기기 안에만 저장돼요'
+                      : '금고를 먼저 열어야 켤 수 있어요',
+                  style: theme.textTheme.labelMedium,
+                ),
+                value: ref.watch(biometricEnabledProvider).value ?? false,
+                activeThumbColor: AppColors.accent,
+                // 켜려면 지금 열려 있어야 한다. 저장할 열쇠가 메모리에 있어야
+                // 하기 때문이다. 끄는 건 언제든 된다.
+                onChanged:
+                    (vault is VaultUnlocked ||
+                        (ref.watch(biometricEnabledProvider).value ?? false))
+                    ? (on) async {
+                        final notifier = ref.read(vaultProvider.notifier);
+                        if (on) {
+                          await notifier.enableBiometrics();
+                        } else {
+                          await notifier.disableBiometrics();
+                        }
+                      }
+                    : null,
+              ),
             if (vault is VaultUnlocked)
               ListTile(
                 contentPadding: EdgeInsets.zero,
