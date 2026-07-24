@@ -223,8 +223,12 @@ flutter test
 ```
 
 ```bash
-flutter build apk --release --split-per-abi
+flutter build apk --release
 ```
+
+`--split-per-abi`는 쓰지 않는다. 파일이 여러 개로 쪼개지면 사용자가 자기
+기기에 맞는 걸 골라야 해서 헷갈리고, 앱 내 업데이트 확인도 `.apk` 자산 중
+첫 번째 것을 그냥 받아오므로 잘못된 아키텍처용을 받을 위험이 있다.
 
 앱 아이콘을 새 이미지로 바꾸려면 `assets/icon/source_dog.png` 를 교체하고:
 

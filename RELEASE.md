@@ -125,11 +125,17 @@ flutter build appbundle --release
 
 ### 직접 설치용 (APK)
 
+**`--split-per-abi`를 쓰지 않는다.** ABI별로 쪼개면 파일이 여러 개가 되고,
+사용자가 자기 기기에 맞는 걸 골라야 해서 헷갈린다. 앱 내 업데이트 확인도
+릴리즈 자산 중 `.apk`로 끝나는 **첫 번째 파일**을 그냥 받아오므로, 파일이
+여러 개면 엉뚱한 아키텍처용을 받을 수 있다. 파일 하나(범용 APK)로 둔다.
+
 ```bash
-flutter build apk --release --split-per-abi
+flutter build apk --release
 ```
 
-결과: `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk` 등
+결과: `build/app/outputs/flutter-apk/app-release.apk` (용량이 크지만 모든
+기기에서 그대로 설치된다)
 
 ### 서명이 제대로 됐는지 확인
 
