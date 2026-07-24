@@ -167,7 +167,9 @@ class StoredCredentialsNotifier extends AsyncNotifier<List<StoredCredential>> {
   /// 구독 하나에 계정 정보 하나. 이미 있으면 덮어쓴다.
   Future<void> save(Credential credential, VaultCrypto crypto) async {
     final encrypted = await credential.encrypt(crypto);
-    final current = state.value ?? const <StoredCredential>[];
+
+    // 불러오기가 끝나기 전에 바꾸면 뒤늦은 build 결과에 덮어써진다
+    final current = await future;
 
     final next = [
       for (final stored in current)
@@ -180,7 +182,7 @@ class StoredCredentialsNotifier extends AsyncNotifier<List<StoredCredential>> {
   }
 
   Future<void> removeFor(String subscriptionId) async {
-    final next = (state.value ?? const <StoredCredential>[])
+    final next = (await future)
         .where((c) => c.subscriptionId != subscriptionId)
         .toList();
 

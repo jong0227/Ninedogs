@@ -11,7 +11,6 @@ import '../../widgets/service_icon.dart';
 import '../add/service_picker_screen.dart';
 import '../detail/subscription_detail_screen.dart';
 import '../settings/settings_screen.dart';
-import '../stats/stats_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -26,13 +25,6 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Ninedogs'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.donut_small_outlined),
-            tooltip: '구독 분석',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const StatsScreen()),
-            ),
-          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: '설정',

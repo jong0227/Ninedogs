@@ -91,7 +91,12 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
   Future<void> _mutate(
     List<Subscription> Function(List<Subscription> current) transform,
   ) async {
-    final next = transform(state.value ?? const []);
+    // build() 가 끝나기 전에 state 를 바꾸면, 뒤늦게 끝난 build 결과가
+    // 방금 넣은 값을 덮어써 버린다. (온보딩에서 이 화면을 아무도 보지 않은
+    // 채로 구독을 추가할 때 실제로 이 순서가 된다)
+    final current = await future;
+
+    final next = transform(current);
     state = AsyncData(next);
     await _repository.save(next);
   }

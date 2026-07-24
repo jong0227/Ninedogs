@@ -12,8 +12,14 @@ class FakeRepository implements SubscriptionRepository {
   List<Subscription> stored;
   int saveCount = 0;
 
+  /// 불러오기를 일부러 늦춰서 실제 기기의 순서를 재현할 때 쓴다.
+  Duration loadDelay = Duration.zero;
+
   @override
-  Future<List<Subscription>> load() async => stored;
+  Future<List<Subscription>> load() async {
+    if (loadDelay > Duration.zero) await Future<void>.delayed(loadDelay);
+    return stored;
+  }
 
   @override
   Future<void> save(List<Subscription> subscriptions) async {
@@ -53,6 +59,33 @@ void main() {
   test('저장소에서 불러온다', () async {
     await container.read(subscriptionsProvider.future);
     expect(container.read(allSubscriptionsProvider).length, 1);
+  });
+
+  test('불러오기가 끝나기 전에 추가해도 사라지지 않는다', () async {
+    // 온보딩에서 실제로 이 순서가 된다. 구독 목록을 아무도 보지 않은 채로
+    // 추가하면, 뒤늦게 끝난 build 결과가 방금 넣은 구독을 덮어썼다.
+    repository.loadDelay = const Duration(milliseconds: 40);
+
+    final subject = container.read(subscriptionsProvider.notifier);
+    await subject.addAll([
+      Subscription(
+        id: 'spotify-1',
+        name: '스포티파이',
+        cycle: BillingCycle.monthly,
+        startedAt: DateTime(2026, 1, 1),
+        priceHistory: [
+          PricePoint(
+            effectiveFrom: DateTime(2026, 1, 1),
+            amount: const Money(10900),
+          ),
+        ],
+      ),
+    ]);
+
+    await container.read(subscriptionsProvider.future);
+
+    expect(container.read(allSubscriptionsProvider).length, 2);
+    expect(repository.stored.length, 2);
   });
 
   test('요금 인상은 이력에 쌓이고 이전 결제는 옛 금액으로 남는다', () async {

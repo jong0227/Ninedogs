@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'data/backup/import_channel.dart';
 import 'features/backup/backup_actions.dart';
-import 'features/home/home_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'features/shell/app_shell.dart';
 import 'providers/app_providers.dart';
 import 'providers/vault_providers.dart';
 
@@ -87,7 +87,7 @@ class _NinedogsAppState extends ConsumerState<NinedogsApp>
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: onboarded ? const HomeScreen() : const OnboardingScreen(),
+      home: onboarded ? const AppShell() : const OnboardingScreen(),
     );
   }
 }

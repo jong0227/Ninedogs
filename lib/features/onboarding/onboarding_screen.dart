@@ -12,7 +12,7 @@ import '../../providers/app_providers.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/service_browser.dart';
 import '../../widgets/service_icon.dart';
-import '../home/home_screen.dart';
+import '../shell/app_shell.dart';
 
 /// 첫 실행 화면. 두 단계로 나눈다.
 ///
@@ -77,7 +77,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      MaterialPageRoute(builder: (_) => const AppShell()),
     );
   }
 
@@ -180,7 +180,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (!mounted) return;
     Navigator.of(
       context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const AppShell()));
   }
 
   // ── 2단계: 요금제·시작일 확인 ─────────────────────────────
