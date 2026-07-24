@@ -8,6 +8,7 @@ import '../../data/models/subscription.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/service_icon.dart';
 import '../edit/subscription_form_screen.dart';
+import '../vault/credential_section.dart';
 
 class SubscriptionDetailScreen extends ConsumerWidget {
   const SubscriptionDetailScreen({super.key, required this.subscriptionId});
@@ -133,7 +134,7 @@ class SubscriptionDetailScreen extends ConsumerWidget {
           ],
 
           const SizedBox(height: AppSpacing.xl),
-          const _CredentialsPlaceholder(),
+          CredentialSection(subscriptionId: subscription.id),
         ],
       ),
     );
@@ -312,37 +313,6 @@ class _ChangeBadge extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: color,
-        ),
-      ),
-    );
-  }
-}
-
-/// 계정 정보(아이디/비밀번호)는 암호화 설계를 마친 뒤에 붙인다.
-class _CredentialsPlaceholder extends StatelessWidget {
-  const _CredentialsPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Row(
-          children: [
-            Icon(Icons.lock_outline, color: theme.textTheme.labelMedium?.color),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('계정 정보', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 2),
-                  Text('암호화 저장 기능 준비 중', style: theme.textTheme.labelMedium),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );
