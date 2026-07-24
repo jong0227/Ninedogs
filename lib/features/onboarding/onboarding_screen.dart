@@ -6,11 +6,11 @@ import '../../core/format/formatters.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/catalog/catalog_service.dart';
-import '../../data/catalog/service_catalog.dart';
 import '../../data/models/money.dart';
 import '../../data/models/subscription.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/subscription_providers.dart';
+import '../../widgets/service_browser.dart';
 import '../../widgets/service_icon.dart';
 import '../home/home_screen.dart';
 
@@ -31,7 +31,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _drafts = <String, _SubscriptionDraft>{};
   final _search = TextEditingController();
 
-  ServiceCategory? _filter;
   String _query = '';
   bool _reviewing = false;
 
@@ -39,14 +38,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void dispose() {
     _search.dispose();
     super.dispose();
-  }
-
-  /// 검색어가 있으면 검색이 우선, 없으면 카테고리 필터를 쓴다.
-  List<CatalogService> get _visibleServices {
-    if (_query.trim().isNotEmpty) return ServiceCatalog.search(_query);
-    return _filter == null
-        ? ServiceCatalog.all
-        : ServiceCatalog.byCategory(_filter!);
   }
 
   void _toggle(CatalogService service) {
@@ -99,7 +90,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Widget _buildPickStep() {
     final theme = Theme.of(context);
-    final services = _visibleServices;
 
     return Column(
       children: [
@@ -129,36 +119,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             onChanged: (value) => setState(() => _query = value),
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        if (_query.trim().isEmpty)
-          _CategoryFilterBar(
-            selected: _filter,
-            onChanged: (category) => setState(() => _filter = category),
-          ),
+        const SizedBox(height: AppSpacing.md),
+        // 분야는 필터가 아니라 목차다. 눌러도 다른 분야가 사라지지 않는다.
         Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenH,
-              AppSpacing.xl,
-              AppSpacing.screenH,
-              AppSpacing.xxl,
-            ),
-            // 4열이면 한 화면에 20개 넘게 들어와서 훑어보기 쉽다.
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              mainAxisSpacing: AppSpacing.lg,
-              crossAxisSpacing: AppSpacing.md,
-              childAspectRatio: 0.68,
-            ),
-            itemCount: services.length,
-            itemBuilder: (context, index) {
-              final service = services[index];
-              return _ServiceTile(
-                service: service,
-                selected: _selected.contains(service.id),
-                onTap: () => _toggle(service),
-              );
-            },
+          child: ServiceBrowser(
+            query: _query,
+            selectedIds: _selected,
+            onTap: _toggle,
           ),
         ),
         // 고르기만 하면 끝난다. 요금제와 시작일은 기본값으로 채우고,
@@ -291,170 +258,6 @@ class _SubscriptionDraft {
   void selectPlan(CatalogPlan next) {
     plan = next;
     price = next.price;
-  }
-}
-
-class _CategoryFilterBar extends StatelessWidget {
-  const _CategoryFilterBar({required this.selected, required this.onChanged});
-
-  final ServiceCategory? selected;
-  final ValueChanged<ServiceCategory?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-        children: [
-          _chip(context, '전체', selected == null, () => onChanged(null)),
-          for (final category in ServiceCategory.values)
-            _chip(
-              context,
-              category.label,
-              selected == category,
-              () => onChanged(category),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _chip(
-    BuildContext context,
-    String label,
-    bool active,
-    VoidCallback onTap,
-  ) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(right: AppSpacing.sm),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: active ? AppColors.accent : theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(
-              color: active ? AppColors.accent : theme.dividerColor,
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: active
-                  ? theme.colorScheme.onPrimary
-                  : theme.colorScheme.onSurface,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ServiceTile extends StatelessWidget {
-  const _ServiceTile({
-    required this.service,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final CatalogService service;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        children: [
-          // 원 자체가 셀 너비를 꽉 채우게 두고, 선택되면 바깥에 빨간 링을 두른다.
-          // 링 두께만큼 항상 자리를 비워둬서 선택할 때 크기가 튀지 않는다.
-          AspectRatio(
-            aspectRatio: 1,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final diameter = constraints.maxWidth;
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    // 선택되면 아이콘 바깥에 빨간 링을 두른다. 고르지 않았을
-                    // 때도 링 두께만큼 자리를 비워둬서 크기가 튀지 않는다.
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 160),
-                      width: diameter,
-                      height: diameter,
-                      padding: const EdgeInsets.all(2.5),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: selected
-                              ? AppColors.accent
-                              : Colors.transparent,
-                          width: 2.5,
-                        ),
-                      ),
-                      child: ServiceIcon.fromCatalog(
-                        service,
-                        size: diameter - 10,
-                      ),
-                    ),
-                    if (selected)
-                      Positioned(
-                        top: -4,
-                        right: -4,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: AppColors.accent,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: theme.scaffoldBackgroundColor,
-                              width: 2,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.check,
-                            size: 11,
-                            color: AppColors.onAccent,
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Flexible(
-            child: Text(
-              service.name,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                height: 1.2,
-                color: selected
-                    ? theme.colorScheme.onSurface
-                    : theme.textTheme.labelMedium?.color,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

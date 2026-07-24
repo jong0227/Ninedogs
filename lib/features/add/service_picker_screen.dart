@@ -5,7 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/catalog/catalog_service.dart';
 import '../../data/catalog/service_catalog.dart';
-import '../../widgets/service_icon.dart';
+import '../../widgets/service_browser.dart';
 import '../edit/subscription_form_screen.dart';
 
 /// 구독을 추가할 때 먼저 서비스를 고르는 화면.
@@ -74,27 +74,9 @@ class _ServicePickerScreenState extends ConsumerState<ServicePickerScreen> {
             )
           else
             Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  0,
-                  AppSpacing.screenH,
-                  AppSpacing.xxl,
-                ),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  mainAxisSpacing: AppSpacing.lg,
-                  crossAxisSpacing: AppSpacing.md,
-                  childAspectRatio: 0.68,
-                ),
-                itemCount: results.length,
-                itemBuilder: (context, index) {
-                  final service = results[index];
-                  return _PickerTile(
-                    service: service,
-                    onTap: () => _openForm(service: service),
-                  );
-                },
+              child: ServiceBrowser(
+                query: _query,
+                onTap: (service) => _openForm(service: service),
               ),
             ),
           SafeArea(
@@ -116,49 +98,6 @@ class _ServicePickerScreenState extends ConsumerState<ServicePickerScreen> {
                 style: TextButton.styleFrom(
                   foregroundColor: theme.textTheme.labelMedium?.color,
                 ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PickerTile extends StatelessWidget {
-  const _PickerTile({required this.service, required this.onTap});
-
-  final CatalogService service;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        children: [
-          AspectRatio(
-            aspectRatio: 1,
-            child: LayoutBuilder(
-              builder: (context, constraints) =>
-                  ServiceIcon.fromCatalog(service, size: constraints.maxWidth),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Flexible(
-            child: Text(
-              service.name,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                height: 1.2,
-                color: theme.textTheme.labelMedium?.color,
               ),
             ),
           ),
