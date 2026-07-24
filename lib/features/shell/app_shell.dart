@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../providers/app_providers.dart';
 import '../../providers/notification_providers.dart';
 import '../../providers/subscription_providers.dart';
 import '../calendar/calendar_screen.dart';
 import '../home/home_screen.dart';
+import '../notifications/notification_rationale.dart';
+import '../settings/settings_screen.dart';
 import '../stats/stats_screen.dart';
 
 /// 앱의 기본 뼈대. 아래 탭으로 구독과 통계를 오간다.
@@ -20,7 +23,8 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  int _index = 0;
+  /// 알림 권한을 물어보기 전에 왜 필요한지 설명하는 창을 한 번만 띄운다.
+  static const _rationaleShownKey = 'notif_rationale_shown_v1';
 
   @override
   void initState() {
@@ -28,10 +32,27 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     // 알림 권한은 앱을 처음 제대로 쓰기 시작할 때 한 번 묻는다.
     // 온보딩 도중에 물으면 뭘 위한 권한인지 알 수 없어 거절당하기 쉽다.
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await ref.read(notificationServiceProvider).requestPermission();
-      if (mounted) _reschedule();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _askNotifications());
+  }
+
+  Future<void> _askNotifications() async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final service = ref.read(notificationServiceProvider);
+
+    // 처음이라면 시스템 창 전에 이유를 먼저 설명한다. "나중에"를 고르면
+    // 이번엔 시스템 창을 띄우지 않고, 설정에서 알림을 켤 때 자연히 요청된다.
+    if (!(prefs.getBool(_rationaleShownKey) ?? false)) {
+      await prefs.setBool(_rationaleShownKey, true);
+      if (!mounted) return;
+      final proceed = await showNotificationRationale(context);
+      if (proceed) await service.requestPermission();
+    } else {
+      // 이미 설명은 봤다. 아직 결정 전이면 시스템이 창을 띄우고,
+      // 이미 허용/거절했으면 아무 창도 뜨지 않는다.
+      await service.requestPermission();
+    }
+
+    if (mounted) _reschedule();
   }
 
   /// 구독이나 설정이 바뀌면 예약을 전부 다시 건다.
@@ -48,18 +69,25 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final index = ref.watch(selectedShellTabProvider);
 
     ref.listen(allSubscriptionsProvider, (_, _) => _reschedule());
     ref.listen(reminderDaysProvider, (_, _) => _reschedule());
 
     return Scaffold(
       body: IndexedStack(
-        index: _index,
-        children: const [HomeScreen(), CalendarScreen(), StatsScreen()],
+        index: index,
+        children: const [
+          HomeScreen(),
+          CalendarScreen(),
+          StatsScreen(),
+          SettingsScreen(),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() => _index = value),
+        selectedIndex: index,
+        onDestinationSelected: (value) =>
+            ref.read(selectedShellTabProvider.notifier).select(value),
         backgroundColor: theme.colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         indicatorColor: AppColors.accent.withValues(alpha: 0.18),
@@ -80,6 +108,11 @@ class _AppShellState extends ConsumerState<AppShell> {
             icon: Icon(Icons.donut_small_outlined),
             selectedIcon: Icon(Icons.donut_small, color: AppColors.accent),
             label: '통계',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings, color: AppColors.accent),
+            label: '설정',
           ),
         ],
       ),

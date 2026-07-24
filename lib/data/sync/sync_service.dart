@@ -45,37 +45,31 @@ class SyncService {
   CollectionReference<Map<String, dynamic>> get _invites =>
       _firestore.collection(_invitesPath);
 
-  // ── 로그인 ──────────────────────────────────────────────
+  // ── 접속 ────────────────────────────────────────────────
 
-  Future<void> signIn(String email, String password) =>
-      _run(() => _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      ));
-
-  Future<void> signUp(String email, String password) =>
-      _run(() => _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      ));
-
-  Future<void> signOut() => _auth.signOut();
-
-  Future<T> _run<T>(Future<T> Function() action) async {
+  /// 사용자 몰래 익명으로 접속한다.
+  ///
+  /// 서버는 household 를 만들거나 들어갈 때 "누가 요청했는지"를 알아야 한다.
+  /// 예전에는 이메일·비밀번호로 계정을 만들게 했지만, 사용자 입장에선 왜 로그인을
+  /// 해야 하는지 알 수 없는 마찰이었다. 익명 접속은 기기마다 uid 만 발급하므로
+  /// 아무것도 입력하지 않아도 "버튼 → 코드 → 공유 → 연결"로 끝난다.
+  ///
+  /// 대신 앱을 지웠다 다시 깔면 uid 가 바뀐다. 그때는 초대 코드로 다시 들어오면
+  /// 되고, 코드는 연결된 화면에서 언제든 확인할 수 있다.
+  Future<void> ensureSignedIn() async {
+    if (_auth.currentUser != null) return;
     try {
-      return await action();
+      await _auth.signInAnonymously();
     } on FirebaseAuthException catch (e) {
       throw SyncException(_readable(e));
     }
   }
 
+  Future<void> signOut() => _auth.signOut();
+
   static String _readable(FirebaseAuthException e) => switch (e.code) {
-    'invalid-email' => '이메일 형식이 올바르지 않아요',
-    'user-not-found' ||
-    'wrong-password' ||
-    'invalid-credential' => '이메일 또는 비밀번호가 맞지 않아요',
-    'email-already-in-use' => '이미 가입된 이메일이에요. 로그인해주세요',
-    'weak-password' => '비밀번호는 6자 이상이어야 해요',
+    // Firebase 콘솔에서 익명 로그인을 안 켰을 때. 개발자에게 주는 힌트다.
+    'operation-not-allowed' => '연결 기능이 아직 준비되지 않았어요 (익명 로그인 미설정)',
     'network-request-failed' => '네트워크에 연결할 수 없어요',
     'too-many-requests' => '잠시 뒤에 다시 시도해주세요',
     _ => '문제가 생겼어요 (${e.code})',
@@ -85,8 +79,9 @@ class SyncService {
 
   /// 새 household 를 만들고 내가 첫 구성원이 된다.
   Future<Household> createHousehold() async {
+    await ensureSignedIn();
     final myUid = uid;
-    if (myUid == null) throw const SyncException('먼저 로그인해주세요');
+    if (myUid == null) throw const SyncException('연결에 실패했어요. 잠시 뒤 다시 시도해주세요');
 
     final doc = _households.doc();
     final household = Household(
@@ -103,8 +98,9 @@ class SyncService {
 
   /// 초대 코드로 기존 household 에 들어간다.
   Future<Household> joinHousehold(String code) async {
+    await ensureSignedIn();
     final myUid = uid;
-    if (myUid == null) throw const SyncException('먼저 로그인해주세요');
+    if (myUid == null) throw const SyncException('연결에 실패했어요. 잠시 뒤 다시 시도해주세요');
 
     final normalized = Household.normalizeCode(code);
     if (normalized.isEmpty) throw const SyncException('초대 코드를 입력해주세요');

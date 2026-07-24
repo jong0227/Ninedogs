@@ -27,10 +27,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _checking = false;
   UpdateResult? _result;
 
-  Future<void> _checkForUpdate() async {
+  // 업데이트 내려받기·설치 진행 상태
+  bool _installing = false;
+  double _installProgress = 0;
+  String? _installError;
+
+  @override
+  void initState() {
+    super.initState();
+    // 설정을 열면(=앱을 켜면) 조용히 새 버전이 있는지 자동으로 확인한다.
+    // 결과가 있을 때만 카드로 보여주므로 최신이면 티가 나지 않는다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _checkForUpdate(silent: true);
+    });
+  }
+
+  Future<void> _checkForUpdate({bool silent = false}) async {
     setState(() {
       _checking = true;
-      _result = null;
+      if (!silent) _result = null;
     });
 
     final version = await ref.read(appVersionProvider.future);
@@ -39,8 +54,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) {
       setState(() {
         _checking = false;
-        _result = result;
+        // 자동 확인은 새 버전이 있을 때만 카드를 띄운다. 최신이거나 확인
+        // 실패면 사용자가 직접 누르기 전까지 조용히 둔다.
+        if (!silent || result is UpdateAvailable) _result = result;
       });
+    }
+  }
+
+  /// 새 APK 를 받아 설치기를 연다. apkUrl 이 없으면 릴리즈 페이지를 대신 연다.
+  Future<void> _downloadAndInstall(AppRelease release) async {
+    final apkUrl = release.apkUrl;
+    if (apkUrl == null) {
+      await _open(release.pageUrl);
+      return;
+    }
+
+    setState(() {
+      _installing = true;
+      _installProgress = 0;
+      _installError = null;
+    });
+
+    try {
+      await ref.read(apkInstallerProvider).downloadAndInstall(
+        apkUrl,
+        onProgress: (p) {
+          if (mounted) setState(() => _installProgress = p);
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _installError = '설치를 시작하지 못했어요. 잠시 뒤 다시 시도해주세요');
+      }
+    } finally {
+      if (mounted) setState(() => _installing = false);
     }
   }
 
@@ -101,7 +148,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 : const Icon(Icons.refresh),
             onTap: _checking ? null : _checkForUpdate,
           ),
-          if (_result != null) _UpdateResultCard(result: _result!, onOpen: _open),
+          if (_result != null)
+            _UpdateResultCard(
+              result: _result!,
+              installing: _installing,
+              progress: _installProgress,
+              installError: _installError,
+              onUpdate: _downloadAndInstall,
+              onOpen: _open,
+            ),
 
           const SizedBox(height: AppSpacing.xl),
           _SectionTitle('결제 알림'),
@@ -203,7 +258,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: Text(
               ref.watch(syncEnabledProvider)
                   ? '한쪽에서 고치면 다른 쪽에도 바로 반영돼요'
-                  : '연결하지 않으면 이 기기에만 저장돼요',
+                  : '초대 코드 하나면 끝. 로그인·가입 없이 배우자와 함께 봐요',
               style: theme.textTheme.labelMedium,
             ),
             trailing: Icon(
@@ -430,9 +485,20 @@ class _ThemeModePicker extends ConsumerWidget {
 }
 
 class _UpdateResultCard extends StatelessWidget {
-  const _UpdateResultCard({required this.result, required this.onOpen});
+  const _UpdateResultCard({
+    required this.result,
+    required this.installing,
+    required this.progress,
+    required this.installError,
+    required this.onUpdate,
+    required this.onOpen,
+  });
 
   final UpdateResult result;
+  final bool installing;
+  final double progress;
+  final String? installError;
+  final ValueChanged<AppRelease> onUpdate;
   final ValueChanged<String> onOpen;
 
   @override
@@ -446,9 +512,23 @@ class _UpdateResultCard extends StatelessWidget {
           UpdateAvailable(:final release) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '새 버전 ${release.version}이 나왔어요',
-                style: theme.textTheme.titleMedium,
+              Row(
+                children: [
+                  const Icon(
+                    Icons.system_update,
+                    size: 20,
+                    color: AppColors.accent,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      '새 버전 ${release.version}이 나왔어요',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               if (release.notes != null && release.notes!.trim().isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.sm),
@@ -460,10 +540,53 @@ class _UpdateResultCard extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
-              FilledButton(
-                onPressed: () => onOpen(release.apkUrl ?? release.pageUrl),
-                child: const Text('받으러 가기'),
-              ),
+              if (installing) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  child: LinearProgressIndicator(
+                    value: progress > 0 ? progress : null,
+                    minHeight: 8,
+                    backgroundColor: theme.colorScheme.surface,
+                    color: AppColors.accent,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  progress > 0
+                      ? '내려받는 중 ${(progress * 100).toInt()}%'
+                      : '내려받는 중…',
+                  style: theme.textTheme.labelMedium,
+                ),
+              ] else
+                FilledButton.icon(
+                  onPressed: () => onUpdate(release),
+                  icon: const Icon(Icons.download, size: 18),
+                  label: const Text('업데이트하기'),
+                ),
+              if (installError != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  installError!,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: AppColors.negative,
+                  ),
+                ),
+              ],
+              if (release.apkUrl != null && !installing) ...[
+                const SizedBox(height: AppSpacing.xs),
+                TextButton(
+                  onPressed: () => onOpen(release.pageUrl),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    '릴리즈 페이지에서 직접 받기',
+                    style: theme.textTheme.labelMedium,
+                  ),
+                ),
+              ],
             ],
           ),
           UpToDate() => Row(

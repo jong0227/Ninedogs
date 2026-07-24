@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Modify this file to customize your launch splash screen -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
+    <!-- 스플래시 바탕을 아이콘 배경(#0C0B0B)과 똑같이 맞춘다. 순수 검정으로 두면
+         아이콘의 둥근 사각형(#0C0B0B)이 배경보다 살짝 밝아 네모 테두리로 보인다. -->
+    <item android:drawable="@color/ic_launcher_background" />
 
     <!-- You can insert your own image assets here -->
     <!-- <item>

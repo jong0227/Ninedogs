@@ -6,6 +6,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Firebase(부부 공유) 설정 파일이 있을 때만 google-services 플러그인을 켠다.
+// 파일이 없어도 앱은 로컬 저장소만으로 정상 빌드·동작해야 한다는 원칙 때문에
+// 하드 의존으로 두지 않는다. 설정 파일은 .gitignore 에 있어 커밋되지 않는다.
+if (project.file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 // 릴리즈 서명 키 정보. 저장소에는 없고 빌드하는 기기에만 둔다.
 // 이 파일이 없으면 디버그 키로 서명한다 (개발용 PC, CI 등).
 // 만드는 방법은 RELEASE.md 참고.

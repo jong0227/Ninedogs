@@ -58,7 +58,6 @@ class _ServicePickerScreenState extends ConsumerState<ServicePickerScreen> {
             ),
             child: TextField(
               controller: _controller,
-              autofocus: true,
               textInputAction: TextInputAction.search,
               decoration: const InputDecoration(
                 hintText: '서비스 이름 검색',

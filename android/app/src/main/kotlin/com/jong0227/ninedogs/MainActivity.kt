@@ -2,9 +2,11 @@ package com.jong0227.ninedogs
 
 import android.content.Intent
 import android.net.Uri
+import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 
 /**
  * 카톡 등에서 백업 파일(.json)을 "Ninedogs로 열기" 했을 때 그 내용을 받아
@@ -36,6 +38,45 @@ class MainActivity : FlutterFragmentActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        // 앱 업데이트: 내려받은 APK 를 안드로이드 설치 화면으로 넘긴다.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, INSTALL_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "installApk" -> {
+                        val path = call.argument<String>("path")
+                        if (path == null) {
+                            result.error("no_path", "path 가 필요합니다", null)
+                        } else {
+                            try {
+                                installApk(path)
+                                result.success(true)
+                            } catch (e: Exception) {
+                                result.error("install_failed", e.message, null)
+                            }
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /**
+     * APK 파일을 안드로이드 패키지 설치기로 넘긴다.
+     *
+     * 파일 경로를 직접 넘기면 Android 7+ 는 막으므로 FileProvider 로 content
+     * URI 를 만들어 읽기 권한과 함께 준다. 설치기가 뜨고, 사용자가 "설치"를
+     * 눌러야 진행된다. "출처를 알 수 없는 앱" 허용은 시스템이 알아서 묻는다.
+     */
+    private fun installApk(path: String) {
+        val file = File(path)
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(intent)
     }
 
     /** 앱이 떠 있는 상태에서 파일이 열린 경우. */
@@ -65,5 +106,6 @@ class MainActivity : FlutterFragmentActivity() {
 
     private companion object {
         const val CHANNEL = "ninedogs/import"
+        const val INSTALL_CHANNEL = "ninedogs/install"
     }
 }

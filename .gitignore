@@ -49,3 +49,7 @@ app.*.map.json
 key.properties
 **/*.jks
 **/*.keystore
+
+# Firebase 프로젝트 설정. 저장소가 공개라 프로젝트 식별 정보를 노출하지 않는다.
+# 없어도 앱은 로컬 저장소만 쓰며 정상 동작한다.
+android/app/google-services.json

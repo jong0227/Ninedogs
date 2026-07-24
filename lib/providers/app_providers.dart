@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/icons/icon_palette.dart';
 import '../data/icons/icon_resolver.dart';
+import '../data/update/apk_installer.dart';
 import '../data/update/update_checker.dart';
 
 /// main() 에서 실제 인스턴스로 override 한다.
@@ -57,12 +58,30 @@ final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(
   ThemeModeNotifier.new,
 );
 
+/// 하단 탭의 현재 선택 인덱스 (0=구독, 1=캘린더, 2=통계).
+///
+/// 홈 화면의 요약 카드처럼, 다른 화면에서 탭을 직접 전환하고 싶을 때 쓴다.
+/// 저장하지 않는다 — 앱을 다시 켜면 구독 탭에서 시작한다.
+class SelectedShellTabNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void select(int index) => state = index;
+}
+
+final selectedShellTabProvider =
+    NotifierProvider<SelectedShellTabNotifier, int>(
+      SelectedShellTabNotifier.new,
+    );
+
 /// 설치된 앱의 버전. 예: '1.0.0'
 final appVersionProvider = FutureProvider<String>(
   (ref) async => (await PackageInfo.fromPlatform()).version,
 );
 
 final updateCheckerProvider = Provider<UpdateChecker>((ref) => UpdateChecker());
+
+final apkInstallerProvider = Provider<ApkInstaller>((ref) => const ApkInstaller());
 
 typedef IconRequest = ({String serviceId, String searchTerm, String? domain});
 

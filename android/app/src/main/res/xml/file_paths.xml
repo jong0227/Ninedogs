@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider 가 공유할 수 있는 경로. 내려받은 업데이트 APK 는 앱 캐시
+     디렉터리에 저장하므로 cache-path 만 열어둔다. -->
+<paths>
+    <cache-path name="update_cache" path="." />
+</paths>

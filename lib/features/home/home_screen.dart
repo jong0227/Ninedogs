@@ -6,11 +6,11 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/models/money.dart';
 import '../../data/models/subscription.dart';
+import '../../providers/app_providers.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/service_icon.dart';
 import '../add/service_picker_screen.dart';
 import '../detail/subscription_detail_screen.dart';
-import '../settings/settings_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -23,16 +23,22 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ninedogs'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: '설정',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(7),
+              child: Image.asset(
+                'assets/icon/app_icon.png',
+                width: 28,
+                height: 28,
+                filterQuality: FilterQuality.medium,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: AppSpacing.sm),
+            const Text('Ninedogs'),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(
@@ -91,46 +97,62 @@ class _SummaryCard extends ConsumerWidget {
     final lifetime = ref.watch(lifetimeTotalProvider);
     final count = ref.watch(activeSubscriptionsProvider).length;
 
+    // 카드를 누르면 통계 탭으로 넘어간다. 요약 숫자를 보고 자세히 보고
+    // 싶어 누르는 게 자연스러운데, 예전엔 아무 반응이 없었다.
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('한 달에', style: theme.textTheme.labelMedium),
-            const SizedBox(height: AppSpacing.xs),
-            _TotalAmount(totals: monthly, large: true),
-            const SizedBox(height: AppSpacing.lg),
-            Divider(color: theme.dividerColor, height: 1),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => ref.read(selectedShellTabProvider.notifier).select(2),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text('한 달에', style: theme.textTheme.labelMedium),
+                  const Spacer(),
+                  Icon(
+                    Icons.bar_chart_rounded,
+                    size: 18,
+                    color: theme.textTheme.labelMedium?.color,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              _TotalAmount(totals: monthly, large: true),
+              const SizedBox(height: AppSpacing.lg),
+              Divider(color: theme.dividerColor, height: 1),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('지금까지 쓴 돈', style: theme.textTheme.labelMedium),
+                        const SizedBox(height: AppSpacing.xs),
+                        _TotalAmount(totals: lifetime),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text('지금까지 쓴 돈', style: theme.textTheme.labelMedium),
+                      Text('구독 중', style: theme.textTheme.labelMedium),
                       const SizedBox(height: AppSpacing.xs),
-                      _TotalAmount(totals: lifetime),
+                      Text(
+                        '$count개',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('구독 중', style: theme.textTheme.labelMedium),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      '$count개',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -196,41 +218,60 @@ class _UpcomingRow extends StatelessWidget {
     final next = subscription.nextBillingDate();
     final soon = days != null && days <= 3;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Row(
-        children: [
-          ServiceIcon.forSubscription(subscription, size: 36),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(subscription.name, style: theme.textTheme.bodyMedium),
+    // 목록의 다른 구독과 마찬가지로 눌러서 상세로 들어간다.
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) =>
+                SubscriptionDetailScreen(subscriptionId: subscription.id),
           ),
-          if (next != null)
-            Text(formatMonthDay(next), style: theme.textTheme.labelMedium),
-          const SizedBox(width: AppSpacing.sm),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: 2,
-            ),
-            decoration: BoxDecoration(
-              color: soon
-                  ? AppColors.accent.withValues(alpha: 0.16)
-                  : theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-            ),
-            child: Text(
-              days == null ? '-' : formatDaysAway(days),
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: soon
-                    ? AppColors.accent
-                    : theme.textTheme.labelMedium?.color,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.sm,
+            horizontal: AppSpacing.xs,
+          ),
+          child: Row(
+            children: [
+              ServiceIcon.forSubscription(subscription, size: 36),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  subscription.name,
+                  style: theme.textTheme.bodyMedium,
+                ),
               ),
-            ),
+              if (next != null)
+                Text(formatMonthDay(next), style: theme.textTheme.labelMedium),
+              const SizedBox(width: AppSpacing.sm),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: soon
+                      ? AppColors.accent.withValues(alpha: 0.16)
+                      : theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Text(
+                  days == null ? '-' : formatDaysAway(days),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: soon
+                        ? AppColors.accent
+                        : theme.textTheme.labelMedium?.color,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

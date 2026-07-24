@@ -34,6 +34,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   String _query = '';
   bool _reviewing = false;
 
+  /// 맨 처음 보여주는 앱 소개. "시작하기"를 누르면 고르기 단계로 넘어간다.
+  bool _showIntro = true;
+
   @override
   void dispose() {
     _search.dispose();
@@ -85,8 +88,99 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: _reviewing ? _buildReviewStep() : _buildPickStep(),
+        child: _showIntro
+            ? _buildIntroStep()
+            : _reviewing
+            ? _buildReviewStep()
+            : _buildPickStep(),
       ),
+    );
+  }
+
+  // ── 0단계: 앱 소개 ──────────────────────────────────────
+
+  Widget _buildIntroStep() {
+    final theme = Theme.of(context);
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenH,
+              AppSpacing.xxl,
+              AppSpacing.screenH,
+              AppSpacing.lg,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: AppSpacing.xl),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.asset(
+                    'assets/icon/app_icon.png',
+                    width: 84,
+                    height: 84,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                Text('Ninedogs', style: theme.textTheme.displayMedium),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  '흩어진 구독을 한곳에서.\n뭘 얼마에 쓰고 있는지 한눈에 봐요.',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.textTheme.labelMedium?.color,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+                const _IntroPoint(
+                  icon: Icons.grid_view_rounded,
+                  title: '구독 한눈에 모아보기',
+                  body: '넷플릭스부터 멜론까지, 아이콘으로 깔끔하게.',
+                ),
+                const _IntroPoint(
+                  icon: Icons.trending_up_rounded,
+                  title: '누적 지출 자동 계산',
+                  body: '앱별로, 전체로 지금까지 얼마 썼는지 알려줘요.',
+                ),
+                const _IntroPoint(
+                  icon: Icons.notifications_active_outlined,
+                  title: '결제 전 미리 알림',
+                  body: '결제일이 다가오면 며칠 전에 짚어드려요.',
+                ),
+                const _IntroPoint(
+                  icon: Icons.lock_outline,
+                  title: '아이디·비밀번호 금고',
+                  body: '서비스 계정 정보를 암호화해서 보관해요.',
+                ),
+                const _IntroPoint(
+                  icon: Icons.favorite_outline,
+                  title: '배우자와 함께 보기',
+                  body: '연결하면 같은 구독 목록을 함께 관리해요.',
+                ),
+              ],
+            ),
+          ),
+        ),
+        _BottomBar(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FilledButton(
+                onPressed: () => setState(() => _showIntro = false),
+                child: const Text('시작하기'),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '입력한 정보는 이 기기에 저장돼요',
+                style: theme.textTheme.labelMedium,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -249,6 +343,63 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           child: FilledButton(onPressed: _finish, child: const Text('완료')),
         ),
       ],
+    );
+  }
+}
+
+/// 소개 화면의 기능 한 줄. 아이콘 + 제목 + 설명.
+class _IntroPoint extends StatelessWidget {
+  const _IntroPoint({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(icon, size: 22, color: AppColors.accent),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  body,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.textTheme.labelMedium?.color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
