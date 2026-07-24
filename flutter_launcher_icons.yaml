@@ -1,0 +1,18 @@
+# 런처 아이콘 생성 설정.
+#
+# 원본 PNG 는 코드로 그린다:
+#   flutter test test/tools/generate_app_icon_test.dart
+# 그 다음 이 설정으로 각 밀도의 아이콘을 만든다:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+
+  # 안드로이드 적응형 아이콘: 배경은 검정 단색, 전경은 개만 있는 버전.
+  # 기기가 원형·둥근사각형 등으로 마스킹하므로 전경은 여백을 넉넉히 뒀다.
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+
+  min_sdk_android: 21
+  remove_alpha_ios: true
