@@ -28,6 +28,34 @@ void main() {
       expect(const Money(999, currency: 'USD').format(), contains('9.99'));
     });
 
+    test('입력 문자열을 금액으로 읽는다', () {
+      expect(Money.tryParse('13500'), const Money(13500));
+      expect(Money.tryParse('13,500'), const Money(13500));
+      expect(Money.tryParse('₩13,500'), const Money(13500));
+      expect(
+        Money.tryParse('9.99', currency: 'USD'),
+        const Money(999, currency: 'USD'),
+      );
+    });
+
+    test('숫자로 읽을 수 없으면 null 을 준다', () {
+      expect(Money.tryParse(''), isNull);
+      expect(Money.tryParse('   '), isNull);
+      expect(Money.tryParse('공짜'), isNull);
+    });
+
+    test('사람이 보는 단위로 환산한다', () {
+      expect(const Money(13500).major, 13500);
+      expect(const Money(999, currency: 'USD').major, 9.99);
+    });
+
+    test('통화를 바꿔도 보이는 숫자는 유지된다', () {
+      // 13,500 -> $13,500.00 (소수점 자리 수가 달라져도 값이 100배 되지 않아야 함)
+      final converted = const Money(13500).convertedTo('USD');
+      expect(converted.major, 13500);
+      expect(converted.minor, 1350000);
+    });
+
     test('JSON 으로 왕복해도 값이 같다', () {
       const original = Money(2900, currency: 'USD');
       expect(Money.fromJson(original.toJson()), original);

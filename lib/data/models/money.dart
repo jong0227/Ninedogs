@@ -49,6 +49,32 @@ class Money implements Comparable<Money> {
     );
   }
 
+  /// 사람이 입력·확인하는 단위. KRW 13500 -> 13500.0, USD 999 -> 9.99
+  double get major => minor / _pow10(decimalDigits);
+
+  /// 입력창의 문자열을 금액으로. 숫자로 읽을 수 없으면 null.
+  static Money? tryParse(String text, {String currency = krw}) {
+    final cleaned = text.replaceAll(RegExp(r'[,\s₩$]'), '');
+    if (cleaned.isEmpty) return null;
+
+    final value = double.tryParse(cleaned);
+    if (value == null || value.isNegative) return null;
+
+    final digits = _zeroDecimalCurrencies.contains(currency) ? 0 : 2;
+    return Money((value * _pow10(digits)).round(), currency: currency);
+  }
+
+  /// 통화만 바꾼다. 금액의 자릿수 의미가 달라지므로 값도 다시 맞춘다.
+  /// (13,500원 -> $135.00 이 아니라 $13,500.00 이 되지 않도록)
+  Money convertedTo(String newCurrency) {
+    if (newCurrency == currency) return this;
+    final newDigits = _zeroDecimalCurrencies.contains(newCurrency) ? 0 : 2;
+    return Money(
+      (major * _pow10(newDigits)).round(),
+      currency: newCurrency,
+    );
+  }
+
   String format({String? locale}) {
     return NumberFormat.simpleCurrency(
       locale: locale ?? (currency == krw ? 'ko_KR' : null),

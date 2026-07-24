@@ -8,6 +8,7 @@ import '../../data/models/money.dart';
 import '../../data/models/subscription.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/service_icon.dart';
+import '../add/service_picker_screen.dart';
 import '../detail/subscription_detail_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -21,12 +22,22 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Ninedogs')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const ServicePickerScreen()),
+        ),
+        backgroundColor: AppColors.accent,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        icon: const Icon(Icons.add),
+        label: const Text('구독 추가'),
+      ),
       body: ListView(
+        // 하단 여백은 떠 있는 '구독 추가' 버튼에 가리지 않을 만큼 둔다.
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.screenH,
           AppSpacing.sm,
           AppSpacing.screenH,
-          AppSpacing.xxl,
+          96,
         ),
         children: [
           const _SummaryCard(),

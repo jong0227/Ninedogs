@@ -7,6 +7,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../data/models/subscription.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/service_icon.dart';
+import '../edit/subscription_form_screen.dart';
 
 class SubscriptionDetailScreen extends ConsumerWidget {
   const SubscriptionDetailScreen({super.key, required this.subscriptionId});
@@ -149,6 +150,20 @@ class SubscriptionDetailScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('편집'),
+              subtitle: const Text('금액, 주기, 결제일, 결제 수단'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        SubscriptionFormScreen(existing: subscription),
+                  ),
+                );
+              },
+            ),
             if (subscription.isActive)
               ListTile(
                 leading: const Icon(Icons.pause_circle_outline),
