@@ -162,6 +162,56 @@ void main() {
     });
   });
 
+  group('알림 설정', () {
+    Subscription withReminders(List<int>? days) => Subscription(
+      id: 'r',
+      name: '넷플릭스',
+      cycle: BillingCycle.monthly,
+      startedAt: DateTime(2026, 1, 1),
+      reminderDaysBefore: days,
+      priceHistory: [
+        PricePoint(
+          effectiveFrom: DateTime(2026, 1, 1),
+          amount: const Money(13500),
+        ),
+      ],
+    );
+
+    test('따로 정하지 않았으면 전체 설정을 따른다', () {
+      expect(withReminders(null).effectiveReminderDays([3]), [3]);
+    });
+
+    test('따로 정했으면 그 값을 쓴다', () {
+      expect(withReminders([7, 1]).effectiveReminderDays([3]), [7, 1]);
+    });
+
+    test('빈 목록은 이 구독만 알림을 끈 것이다', () {
+      // null(전체 따름)과 빈 목록(끔)은 다른 뜻이어야 한다
+      expect(withReminders([]).effectiveReminderDays([3]), isEmpty);
+    });
+
+    test('JSON 으로 왕복해도 유지된다', () {
+      expect(
+        Subscription.fromJson(withReminders([7, 1]).toJson())
+            .reminderDaysBefore,
+        [7, 1],
+      );
+      expect(
+        Subscription.fromJson(withReminders(null).toJson()).reminderDaysBefore,
+        isNull,
+      );
+      expect(
+        Subscription.fromJson(withReminders([]).toJson()).reminderDaysBefore,
+        isEmpty,
+      );
+    });
+
+    test('copyWith 로 전체 설정 따르기로 되돌릴 수 있다', () {
+      final custom = withReminders([7]);
+      expect(custom.copyWith(clearReminders: true).reminderDaysBefore, isNull);
+    });
+  });
+
   test('JSON 으로 왕복해도 값이 유지된다', () {
     final original = Subscription(
       id: 'abc',

@@ -6,10 +6,12 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/update/update_checker.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/notification_providers.dart';
 import '../../providers/reset_providers.dart';
 import '../../providers/subscription_providers.dart';
 import '../../providers/vault_providers.dart';
 import '../backup/backup_actions.dart';
+import '../notifications/reminder_picker.dart';
 import '../vault/vault_sheets.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -98,6 +100,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: _checking ? null : _checkForUpdate,
           ),
           if (_result != null) _UpdateResultCard(result: _result!, onOpen: _open),
+
+          const SizedBox(height: AppSpacing.xl),
+          _SectionTitle('결제 알림'),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '결제 며칠 전에 알려드릴까요? 여러 개 고를 수 있어요.',
+            style: theme.textTheme.labelMedium,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          ReminderDayPicker(
+            selected: ref.watch(reminderDaysProvider),
+            onToggle: (days) =>
+                ref.read(reminderDaysProvider.notifier).toggle(days),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '${describeReminders(ref.watch(reminderDaysProvider))} · '
+            '구독마다 따로 정할 수도 있어요',
+            style: theme.textTheme.labelMedium,
+          ),
 
           const SizedBox(height: AppSpacing.xl),
           _SectionTitle('화면'),

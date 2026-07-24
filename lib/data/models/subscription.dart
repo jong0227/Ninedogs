@@ -35,6 +35,7 @@ class Subscription {
     this.paymentMethod,
     this.credentialId,
     this.memo,
+    this.reminderDaysBefore,
   }) : assert(priceHistory.isNotEmpty, '구독은 최소 한 개의 가격 정보가 필요합니다'),
        priceHistory = List.unmodifiable(
          [...priceHistory]
@@ -76,7 +77,17 @@ class Subscription {
 
   final String? memo;
 
+  /// 결제 며칠 전에 알림을 받을지. 예: [7, 1]
+  ///
+  /// null 이면 전체 설정을 따른다. 빈 목록이면 이 구독만 알림을 끈 것이다.
+  /// 이 둘을 구분해야 "전체는 켜져 있지만 이건 끔"이 가능하다.
+  final List<int>? reminderDaysBefore;
+
   String get currency => priceHistory.last.amount.currency;
+
+  /// 전체 설정을 감안한 실제 알림 시점.
+  List<int> effectiveReminderDays(List<int> fallback) =>
+      reminderDaysBefore ?? fallback;
 
   bool get isActive => canceledAt == null;
 
@@ -178,7 +189,11 @@ class Subscription {
     String? paymentMethod,
     String? credentialId,
     String? memo,
+    List<int>? reminderDaysBefore,
     bool clearCanceledAt = false,
+
+    /// 이 구독만의 알림 설정을 지우고 전체 설정을 따르게 한다.
+    bool clearReminders = false,
   }) {
     return Subscription(
       id: id,
@@ -195,6 +210,9 @@ class Subscription {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       credentialId: credentialId ?? this.credentialId,
       memo: memo ?? this.memo,
+      reminderDaysBefore: clearReminders
+          ? null
+          : (reminderDaysBefore ?? this.reminderDaysBefore),
     );
   }
 
@@ -213,6 +231,7 @@ class Subscription {
     'paymentMethod': paymentMethod,
     'credentialId': credentialId,
     'memo': memo,
+    'reminderDaysBefore': reminderDaysBefore,
   };
 
   factory Subscription.fromJson(Map<String, Object?> json) => Subscription(
@@ -232,6 +251,9 @@ class Subscription {
     paymentMethod: json['paymentMethod'] as String?,
     credentialId: json['credentialId'] as String?,
     memo: json['memo'] as String?,
+    reminderDaysBefore: (json['reminderDaysBefore'] as List?)
+        ?.map((e) => (e as num).toInt())
+        .toList(),
   );
 
   static DateTime? _parseOrNull(Object? value) =>

@@ -8,6 +8,7 @@ import '../../data/models/subscription.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/service_icon.dart';
 import '../edit/subscription_form_screen.dart';
+import '../notifications/reminder_picker.dart';
 import '../vault/credential_section.dart';
 
 class SubscriptionDetailScreen extends ConsumerWidget {
@@ -127,6 +128,9 @@ class SubscriptionDetailScreen extends ConsumerWidget {
           ],
 
           const SizedBox(height: AppSpacing.xl),
+          SubscriptionReminderCard(subscription: subscription),
+
+          const SizedBox(height: AppSpacing.md),
           CredentialSection(subscriptionId: subscription.id),
         ],
       ),

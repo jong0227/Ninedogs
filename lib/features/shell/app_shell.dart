@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../providers/notification_providers.dart';
+import '../../providers/subscription_providers.dart';
 import '../home/home_screen.dart';
 import '../stats/stats_screen.dart';
 
@@ -20,8 +22,34 @@ class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
 
   @override
+  void initState() {
+    super.initState();
+
+    // 알림 권한은 앱을 처음 제대로 쓰기 시작할 때 한 번 묻는다.
+    // 온보딩 도중에 물으면 뭘 위한 권한인지 알 수 없어 거절당하기 쉽다.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(notificationServiceProvider).requestPermission();
+      if (mounted) _reschedule();
+    });
+  }
+
+  /// 구독이나 설정이 바뀌면 예약을 전부 다시 건다.
+  /// 금액·결제일이 바뀐 채로 남은 예약은 틀린 내용을 알려주게 된다.
+  void _reschedule() {
+    ref
+        .read(notificationServiceProvider)
+        .rescheduleAll(
+          ref.read(allSubscriptionsProvider),
+          ref.read(reminderDaysProvider),
+        );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    ref.listen(allSubscriptionsProvider, (_, _) => _reschedule());
+    ref.listen(reminderDaysProvider, (_, _) => _reschedule());
 
     return Scaffold(
       body: IndexedStack(

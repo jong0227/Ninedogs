@@ -25,6 +25,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications 가 최신 날짜/시간 API 를 쓰는데,
+        // 구형 안드로이드에도 그 API 를 제공하려면 이게 필요하다.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -67,6 +70,10 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
 
 flutter {

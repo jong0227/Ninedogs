@@ -68,6 +68,20 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
     ],
   );
 
+  /// 이 구독만의 알림 시점. null 을 주면 전체 설정을 따르게 되돌린다.
+  Future<void> setReminderDays(String id, List<int>? days) => _mutate(
+    (current) => [
+      for (final s in current)
+        if (s.id == id)
+          s.copyWith(
+            reminderDaysBefore: days,
+            clearReminders: days == null,
+          )
+        else
+          s,
+    ],
+  );
+
   /// 금액을 잘못 적었을 때 쓰는 정정. 가격이 바뀐 게 아니므로 이력을 늘리지
   /// 않고 마지막 항목을 교체한다. 누적 지출도 새 금액 기준으로 다시 계산된다.
   Future<void> correctLatestPrice(String id, Money price) => _mutate(
