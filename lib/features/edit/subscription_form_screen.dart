@@ -7,6 +7,7 @@ import '../../core/format/formatters.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/catalog/catalog_service.dart';
+import '../../data/catalog/service_catalog.dart';
 import '../../data/models/billing_cycle.dart';
 import '../../data/models/money.dart';
 import '../../data/models/subscription.dart';
@@ -62,18 +63,27 @@ class _SubscriptionFormScreenState
   CatalogPlan? _selectedPlan;
   String? _amountError;
 
+  /// 이 구독에 해당하는 카탈로그 서비스.
+  ///
+  /// 새로 추가할 때는 고른 서비스가 그대로 넘어오지만, 편집할 때는 넘어오지
+  /// 않는다. 그래서 구독에 저장된 serviceId 로 다시 찾아온다.
+  /// 이게 있어야 편집할 때도 요금제를 골라서 바꿀 수 있다.
+  CatalogService? get _catalog =>
+      widget.service ?? ServiceCatalog.byId(widget.existing?.serviceId ?? '');
+
   @override
   void initState() {
     super.initState();
     final existing = widget.existing;
-    final service = widget.service;
+    final service = _catalog;
     final plan = service?.defaultPlan;
 
-    _selectedPlan = existing == null ? plan : null;
+    _selectedPlan = existing == null ? plan : _matchPlan(service, existing);
 
     _name = TextEditingController(
       text: existing?.name ?? service?.name ?? widget.customName ?? '',
     );
+    // 편집일 때는 기존 값이 우선이고, 새로 추가할 때만 기본 요금제로 채운다.
     _currency = existing?.currency ?? Money.krw;
     _amount = TextEditingController(
       text: _formatAmountInput(
@@ -95,6 +105,23 @@ class _SubscriptionFormScreenState
     _paymentMethod.dispose();
     _memo.dispose();
     super.dispose();
+  }
+
+  /// 편집 화면을 열었을 때 지금 쓰는 요금제가 어느 것인지 짚어준다.
+  /// 메모에 요금제 이름을 남겨두므로 그것부터 보고, 없으면 금액으로 찾는다.
+  static CatalogPlan? _matchPlan(CatalogService? service, Subscription current) {
+    if (service == null) return null;
+
+    for (final plan in service.plans) {
+      if (plan.name == current.memo) return plan;
+    }
+    for (final plan in service.plans) {
+      if (plan.price == current.currentPrice && plan.cycle == current.cycle) {
+        return plan;
+      }
+    }
+    // 직접 고친 금액이면 어느 요금제도 아니다. 칩은 아무것도 선택되지 않는다.
+    return null;
   }
 
   String _formatAmountInput(Money money) {
@@ -266,7 +293,7 @@ class _SubscriptionFormScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final service = widget.service;
+    final service = _catalog;
     final plans = service?.plans ?? const <CatalogPlan>[];
 
     return Scaffold(
