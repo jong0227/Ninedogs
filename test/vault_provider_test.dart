@@ -20,6 +20,9 @@ class FakeCredentialRepository implements CredentialRepository {
   @override
   Future<void> save(List<StoredCredential> credentials) async =>
       stored = credentials;
+
+  @override
+  Stream<List<StoredCredential>>? watch() => null;
 }
 
 void main() {

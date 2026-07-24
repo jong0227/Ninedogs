@@ -22,6 +22,9 @@ class FakeSubscriptionRepository implements SubscriptionRepository {
   @override
   Future<void> save(List<Subscription> subscriptions) async =>
       stored = subscriptions;
+
+  @override
+  Stream<List<Subscription>>? watch() => null;
 }
 
 class FakeCredentialRepository implements CredentialRepository {
@@ -41,6 +44,9 @@ class FakeCredentialRepository implements CredentialRepository {
   @override
   Future<void> save(List<StoredCredential> credentials) async =>
       stored = credentials;
+
+  @override
+  Stream<List<StoredCredential>>? watch() => null;
 }
 
 Subscription sub(String id, {int price = 10000}) => Subscription(

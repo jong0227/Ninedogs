@@ -11,6 +11,10 @@ import '../models/subscription.dart';
 abstract interface class SubscriptionRepository {
   Future<List<Subscription>> load();
   Future<void> save(List<Subscription> subscriptions);
+
+  /// 다른 기기에서 바뀐 내용을 실시간으로 받는다.
+  /// 기기 안에만 저장하는 구현은 지켜볼 상대가 없으므로 null.
+  Stream<List<Subscription>>? watch();
 }
 
 class LocalSubscriptionRepository implements SubscriptionRepository {
@@ -41,4 +45,7 @@ class LocalSubscriptionRepository implements SubscriptionRepository {
     final raw = jsonEncode(subscriptions.map((s) => s.toJson()).toList());
     await _prefs.setString(_key, raw);
   }
+
+  @override
+  Stream<List<Subscription>>? watch() => null;
 }

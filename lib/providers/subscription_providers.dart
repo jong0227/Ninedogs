@@ -2,19 +2,42 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/money.dart';
 import '../data/models/subscription.dart';
+import '../data/repository/firestore_repositories.dart';
 import '../data/repository/subscription_repository.dart';
 import 'app_providers.dart';
+import 'sync_providers.dart';
 
-final subscriptionRepositoryProvider = Provider<SubscriptionRepository>(
-  (ref) => LocalSubscriptionRepository(ref.watch(sharedPreferencesProvider)),
-);
+/// 연결돼 있으면 household 저장소를, 아니면 이 기기 저장소를 쓴다.
+/// 화면과 로직은 어느 쪽인지 몰라도 된다.
+final subscriptionRepositoryProvider = Provider<SubscriptionRepository>((ref) {
+  final householdId = ref.watch(householdIdProvider);
+  if (householdId != null) {
+    return FirestoreSubscriptionRepository(householdId: householdId);
+  }
+  return LocalSubscriptionRepository(ref.watch(sharedPreferencesProvider));
+});
 
 class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
   SubscriptionRepository get _repository =>
       ref.read(subscriptionRepositoryProvider);
 
   @override
-  Future<List<Subscription>> build() => _repository.load();
+  Future<List<Subscription>> build() {
+    final repository = ref.watch(subscriptionRepositoryProvider);
+
+    // 상대가 다른 기기에서 고치면 바로 반영된다.
+    final stream = repository.watch();
+    if (stream != null) {
+      final listener = stream.listen((remote) {
+        // 첫 불러오기가 끝나기 전에 끼어들면 그 결과에 덮어써진다.
+        // 어차피 load() 가 같은 내용을 가져오므로 건너뛰어도 손해가 없다.
+        if (state.hasValue) state = AsyncData(remote);
+      });
+      ref.onDispose(listener.cancel);
+    }
+
+    return repository.load();
+  }
 
   Future<void> addAll(Iterable<Subscription> subscriptions) =>
       _mutate((current) => [...current, ...subscriptions]);

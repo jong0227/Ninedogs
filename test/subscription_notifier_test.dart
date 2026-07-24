@@ -26,6 +26,9 @@ class FakeRepository implements SubscriptionRepository {
     stored = subscriptions;
     saveCount++;
   }
+
+  @override
+  Stream<List<Subscription>>? watch() => null;
 }
 
 Subscription netflix() => Subscription(

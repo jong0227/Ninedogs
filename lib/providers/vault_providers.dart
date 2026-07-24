@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/credential.dart';
 import '../data/repository/credential_repository.dart';
+import '../data/repository/firestore_repositories.dart';
 import '../data/security/biometric_gate.dart';
 import '../data/security/vault_crypto.dart';
 import 'app_providers.dart';
+import 'sync_providers.dart';
 
 /// 금고의 잠금 상태.
 sealed class VaultState {
@@ -27,9 +29,15 @@ class VaultUnlocked extends VaultState {
   final VaultCrypto crypto;
 }
 
-final credentialRepositoryProvider = Provider<CredentialRepository>(
-  (ref) => LocalCredentialRepository(ref.watch(sharedPreferencesProvider)),
-);
+/// 연결돼 있으면 household 저장소를, 아니면 이 기기 저장소를 쓴다.
+/// 어느 쪽이든 올라가는 건 암호문뿐이다.
+final credentialRepositoryProvider = Provider<CredentialRepository>((ref) {
+  final householdId = ref.watch(householdIdProvider);
+  if (householdId != null) {
+    return FirestoreCredentialRepository(householdId: householdId);
+  }
+  return LocalCredentialRepository(ref.watch(sharedPreferencesProvider));
+});
 
 final biometricGateProvider = Provider<BiometricGate>((ref) => BiometricGate());
 
@@ -201,7 +209,19 @@ class StoredCredentialsNotifier extends AsyncNotifier<List<StoredCredential>> {
   CredentialRepository get _repository => ref.read(credentialRepositoryProvider);
 
   @override
-  Future<List<StoredCredential>> build() => _repository.load();
+  Future<List<StoredCredential>> build() {
+    final repository = ref.watch(credentialRepositoryProvider);
+
+    final stream = repository.watch();
+    if (stream != null) {
+      final listener = stream.listen((remote) {
+        if (state.hasValue) state = AsyncData(remote);
+      });
+      ref.onDispose(listener.cancel);
+    }
+
+    return repository.load();
+  }
 
   /// 구독 하나에 계정 정보 하나. 이미 있으면 덮어쓴다.
   Future<void> save(Credential credential, VaultCrypto crypto) async {

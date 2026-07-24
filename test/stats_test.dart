@@ -18,6 +18,9 @@ class FakeRepository implements SubscriptionRepository {
   @override
   Future<void> save(List<Subscription> subscriptions) async =>
       stored = subscriptions;
+
+  @override
+  Stream<List<Subscription>>? watch() => null;
 }
 
 Subscription sub(

@@ -44,6 +44,9 @@ abstract interface class CredentialRepository {
   Future<void> saveMetadata(VaultMetadata metadata);
   Future<List<StoredCredential>> load();
   Future<void> save(List<StoredCredential> credentials);
+
+  /// 다른 기기에서 바뀐 내용을 실시간으로 받는다. 로컬 구현은 null.
+  Stream<List<StoredCredential>>? watch();
 }
 
 class LocalCredentialRepository implements CredentialRepository {
@@ -92,4 +95,7 @@ class LocalCredentialRepository implements CredentialRepository {
     _credentialsKey,
     jsonEncode(credentials.map((c) => c.toJson()).toList()),
   );
+
+  @override
+  Stream<List<StoredCredential>>? watch() => null;
 }

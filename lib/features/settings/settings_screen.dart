@@ -9,9 +9,11 @@ import '../../providers/app_providers.dart';
 import '../../providers/notification_providers.dart';
 import '../../providers/reset_providers.dart';
 import '../../providers/subscription_providers.dart';
+import '../../providers/sync_providers.dart';
 import '../../providers/vault_providers.dart';
 import '../backup/backup_actions.dart';
 import '../notifications/reminder_picker.dart';
+import '../sync/sync_screen.dart';
 import '../vault/vault_sheets.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -190,6 +192,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 },
               ),
           ],
+
+          const SizedBox(height: AppSpacing.xl),
+          _SectionTitle('가족 연결'),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              ref.watch(syncEnabledProvider) ? '연결됨' : '배우자와 함께 보기',
+            ),
+            subtitle: Text(
+              ref.watch(syncEnabledProvider)
+                  ? '한쪽에서 고치면 다른 쪽에도 바로 반영돼요'
+                  : '연결하지 않으면 이 기기에만 저장돼요',
+              style: theme.textTheme.labelMedium,
+            ),
+            trailing: Icon(
+              ref.watch(syncEnabledProvider)
+                  ? Icons.link
+                  : Icons.person_add_outlined,
+              color: ref.watch(syncEnabledProvider)
+                  ? AppColors.positive
+                  : null,
+            ),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SyncScreen()),
+            ),
+          ),
 
           const SizedBox(height: AppSpacing.xl),
           _SectionTitle('백업'),
