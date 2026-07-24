@@ -40,6 +40,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     super.dispose();
   }
 
+  /// 고른 순서대로. Set 과 Map 모두 넣은 순서를 유지한다.
+  List<CatalogService> get _selectedServices =>
+      _drafts.values.map((draft) => draft.service).toList();
+
   void _toggle(CatalogService service) {
     setState(() {
       if (_selected.remove(service.id)) {
@@ -118,6 +122,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
             onChanged: (value) => setState(() => _query = value),
           ),
+        ),
+        // 무엇을 몇 개 골랐는지 항상 보이게 한다.
+        // 그리드만 있으면 스크롤하다가 내가 뭘 골랐는지 놓치게 된다.
+        _SelectedStrip(
+          services: _selectedServices,
+          onRemove: _toggle,
         ),
         const SizedBox(height: AppSpacing.md),
         // 분야는 필터가 아니라 목차다. 눌러도 다른 분야가 사라지지 않는다.
@@ -239,6 +249,125 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           child: FilledButton(onPressed: _finish, child: const Text('완료')),
         ),
       ],
+    );
+  }
+}
+
+/// 지금까지 고른 서비스를 작은 아이콘으로 늘어놓는 띠.
+///
+/// 하나도 없으면 자리를 차지하지 않고, 고르는 순간 부드럽게 펼쳐진다.
+/// 아이콘을 누르면 선택이 풀린다 — 그리드에서 다시 찾아 누를 필요가 없다.
+class _SelectedStrip extends StatefulWidget {
+  const _SelectedStrip({required this.services, required this.onRemove});
+
+  final List<CatalogService> services;
+  final ValueChanged<CatalogService> onRemove;
+
+  @override
+  State<_SelectedStrip> createState() => _SelectedStripState();
+}
+
+class _SelectedStripState extends State<_SelectedStrip> {
+  final _scroll = ScrollController();
+
+  static const _iconSize = 38.0;
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(_SelectedStrip old) {
+    super.didUpdateWidget(old);
+
+    // 새로 고른 게 끝에 붙으므로 끝으로 밀어준다.
+    // 안 그러면 방금 고른 게 화면 밖에 있어서 반응이 없어 보인다.
+    if (widget.services.length > old.services.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scroll.hasClients) return;
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOut,
+        );
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      alignment: Alignment.topCenter,
+      child: widget.services.isEmpty
+          ? const SizedBox(width: double.infinity)
+          : Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: AppSpacing.screenH,
+                      bottom: AppSpacing.sm,
+                    ),
+                    child: Text(
+                      '고른 구독 ${widget.services.length}개 · 눌러서 빼기',
+                      style: theme.textTheme.labelMedium,
+                    ),
+                  ),
+                  SizedBox(
+                    height: _iconSize,
+                    child: ListView.separated(
+                      controller: _scroll,
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.screenH,
+                      ),
+                      itemCount: widget.services.length,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(width: AppSpacing.sm),
+                      itemBuilder: (context, index) {
+                        final service = widget.services[index];
+                        return GestureDetector(
+                          onTap: () => widget.onRemove(service),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              ServiceIcon.fromCatalog(
+                                service,
+                                size: _iconSize,
+                              ),
+                              Positioned(
+                                top: -2,
+                                right: -2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(1),
+                                  decoration: BoxDecoration(
+                                    color: theme.scaffoldBackgroundColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.cancel,
+                                    size: 14,
+                                    color: AppColors.accent,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 }
