@@ -9,6 +9,7 @@ import '../../providers/app_providers.dart';
 import '../../providers/reset_providers.dart';
 import '../../providers/subscription_providers.dart';
 import '../../providers/vault_providers.dart';
+import '../backup/backup_actions.dart';
 import '../vault/vault_sheets.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -140,6 +141,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 },
               ),
           ],
+
+          const SizedBox(height: AppSpacing.xl),
+          _SectionTitle('백업'),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('백업 내보내기'),
+            subtitle: Text(
+              '파일로 만들어 카톡이나 메일로 보내둘 수 있어요',
+              style: theme.textTheme.labelMedium,
+            ),
+            trailing: const Icon(Icons.ios_share),
+            onTap: () => showExportSheet(context, ref),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const ImportHowTo(),
 
           const SizedBox(height: AppSpacing.xl),
           _SectionTitle('위험'),

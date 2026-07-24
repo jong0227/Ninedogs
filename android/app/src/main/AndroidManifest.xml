@@ -27,6 +27,22 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- 카톡 등에서 백업 파일(.json)을 눌렀을 때 Ninedogs 로 열 수 있게 한다 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="content" android:mimeType="application/json"/>
+                <data android:scheme="file" android:mimeType="application/json"/>
+            </intent-filter>
+
+            <!-- 다른 앱에서 '공유'로 백업 파일을 보낼 때 -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/json"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
