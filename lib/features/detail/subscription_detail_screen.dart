@@ -7,6 +7,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../data/models/subscription.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/service_icon.dart';
+import '../edit/quick_edits.dart';
 import '../edit/subscription_form_screen.dart';
 import '../notifications/reminder_picker.dart';
 import '../vault/credential_section.dart';
@@ -54,9 +55,25 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      subscription.currentPrice.format(),
-                      style: theme.textTheme.displaySmall,
+                    // 금액을 눌러 바로 고친다. 편집 화면까지 가지 않아도 된다.
+                    InkWell(
+                      onTap: () =>
+                          showPriceEditor(context, ref, subscription),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              subscription.currentPrice.format(),
+                              style: theme.textTheme.displaySmall,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          const EditAffordance(size: 18),
+                        ],
+                      ),
                     ),
                     Text(
                       '${subscription.cycle.label}'
@@ -96,8 +113,20 @@ class SubscriptionDetailScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.xl),
 
-          _InfoTile(label: '구독 시작', value: formatDate(subscription.startedAt)),
-          _InfoTile(
+          // 값을 눌러 그 자리에서 고친다
+          EditableInfoTile(
+            label: '구독 시작',
+            value: formatDate(subscription.startedAt),
+            onTap: () => showStartDateEditor(context, ref, subscription),
+          ),
+          EditableInfoTile(
+            label: '카드 결제일 기준',
+            value: subscription.billingAnchor == null
+                ? '매달 ${subscription.startedAt.day}일 (시작일과 같음)'
+                : '매달 ${subscription.billingAnchor!.day}일',
+            onTap: () => showBillingAnchorEditor(context, ref, subscription),
+          ),
+          EditableInfoTile(
             label: '다음 결제일',
             value: switch (subscription.nextBillingDate()) {
               final date? =>
@@ -106,16 +135,20 @@ class SubscriptionDetailScreen extends ConsumerWidget {
               null => '해지함',
             },
           ),
-          _InfoTile(
+          EditableInfoTile(
             label: '이용 가능 기한',
             value: switch (subscription.accessValidUntil) {
               final date? => formatDate(date),
               null => '-',
             },
           ),
-          _InfoTile(label: '결제 수단', value: subscription.paymentMethod ?? '미등록'),
+          EditableInfoTile(
+            label: '결제 수단',
+            value: subscription.paymentMethod ?? '미등록',
+            onTap: () => showPaymentMethodEditor(context, ref, subscription),
+          ),
           if (subscription.canceledAt != null)
-            _InfoTile(
+            EditableInfoTile(
               label: '해지일',
               value: formatDate(subscription.canceledAt!),
             ),
@@ -222,28 +255,6 @@ class SubscriptionDetailScreen extends ConsumerWidget {
       ),
     );
     return result ?? false;
-  }
-}
-
-class _InfoTile extends StatelessWidget {
-  const _InfoTile({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: theme.textTheme.labelMedium),
-          Text(value, style: theme.textTheme.bodyMedium),
-        ],
-      ),
-    );
   }
 }
 

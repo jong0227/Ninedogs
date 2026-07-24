@@ -52,7 +52,7 @@ class _VaultChangePasswordFormState
   bool _working = false;
   String? _error;
 
-  static const _minLength = 8;
+  static const _minLength = 4;
 
   @override
   void dispose() {
@@ -177,7 +177,7 @@ class _VaultSetupFormState extends ConsumerState<_VaultSetupForm> {
   bool _working = false;
   String? _error;
 
-  static const _minLength = 8;
+  static const _minLength = 4;
 
   @override
   void dispose() {

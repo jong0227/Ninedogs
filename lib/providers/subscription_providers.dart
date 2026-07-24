@@ -91,6 +91,49 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
     ],
   );
 
+  /// 상세 화면에서 값 하나만 바로 고칠 때 쓴다.
+  /// 편집 화면을 통째로 열지 않아도 되게.
+  Future<void> setStartedAt(String id, DateTime startedAt) => _mutate(
+    (current) => [
+      for (final s in current)
+        if (s.id == id) s.copyWith(startedAt: startedAt) else s,
+    ],
+  );
+
+  Future<void> setBillingAnchor(String id, DateTime? anchor) => _mutate(
+    (current) => [
+      for (final s in current)
+        if (s.id == id)
+          Subscription(
+            id: s.id,
+            serviceId: s.serviceId,
+            name: s.name,
+            iconUrl: s.iconUrl,
+            brandColorValue: s.brandColorValue,
+            cycle: s.cycle,
+            priceHistory: s.priceHistory,
+            startedAt: s.startedAt,
+            // copyWith 로는 null 로 되돌릴 수 없어서 직접 만든다
+            billingAnchor: anchor,
+            canceledAt: s.canceledAt,
+            accessEndsAt: s.accessEndsAt,
+            paymentMethod: s.paymentMethod,
+            credentialId: s.credentialId,
+            memo: s.memo,
+            reminderDaysBefore: s.reminderDaysBefore,
+          )
+        else
+          s,
+    ],
+  );
+
+  Future<void> setPaymentMethod(String id, String? paymentMethod) => _mutate(
+    (current) => [
+      for (final s in current)
+        if (s.id == id) s.copyWith(paymentMethod: paymentMethod) else s,
+    ],
+  );
+
   /// 이 구독만의 알림 시점. null 을 주면 전체 설정을 따르게 되돌린다.
   Future<void> setReminderDays(String id, List<int>? days) => _mutate(
     (current) => [

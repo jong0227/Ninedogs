@@ -100,6 +100,16 @@ git status --short
 
 `key.properties`가 안 보이면 정상이다.
 
+## 4.5. Firebase 설정 (부부 공유를 쓸 거면)
+
+부부 공유 동기화를 켜려면 `google-services.json` 이 필요하다.
+없으면 앱은 이 기기 저장소만 쓰며 정상 동작한다.
+
+절차는 [CLAUDE.md](CLAUDE.md) 의 "Firebase 설정" 항목을 그대로 따르면 된다.
+요약하면: 콘솔에서 Android 앱 추가(`com.jong0227.ninedogs`) → json 을
+`android/app/` 에 넣기 → gradle 플러그인 두 줄 추가 → Authentication 의
+이메일/비밀번호 켜기 → Firestore 만들고 `firestore.rules` 붙여넣기.
+
 ## 5. 빌드
 
 `android/app/build.gradle.kts`가 `key.properties`가 있으면 자동으로 그 키를
