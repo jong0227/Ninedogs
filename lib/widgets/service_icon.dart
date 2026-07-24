@@ -11,15 +11,17 @@ import '../providers/app_providers.dart';
 ///
 /// ## 아이콘은 절대 잘리지 않는다
 ///
-/// 원(또는 둥근 사각형)은 아이콘을 오려내는 **마스크가 아니라 받침**이다.
-/// 받침을 깔고 그 위에 아이콘 원본을 통째로 축소해서 얹는다.
+/// 받침은 아이콘을 오려내는 **마스크가 아니다.** 받침을 깔고 그 위에
+/// 아이콘 원본을 통째로 축소해 얹는다. `ClipRRect` 같은 잘라내는 처리를
+/// **하지 않고**, `BoxFit.contain` 이라 비율도 그대로다.
+/// 로고가 모서리까지 꽉 찬 아이콘(워드마크형)도 안전하다.
 ///
-/// - 정사각형이 원 안에 완전히 들어가는 한계는 지름의 70.7%(1/√2)다.
-///   여기서는 64%만 쓰므로 사방에 여백이 남는다.
-/// - 아이콘에는 `ClipRRect` 같은 잘라내는 처리를 **하지 않는다.**
-///   `BoxFit.contain` 이라 가로세로 비율도 그대로 유지된다.
+/// ## 받침이 둥근 사각형인 이유
 ///
-/// 이 구조 덕분에 로고가 모서리까지 꽉 찬 아이콘(워드마크형)도 안전하다.
+/// 앱 아이콘은 정사각형이다. 원형 받침에 넣으면 정사각형이 원 안에
+/// 들어가는 한계가 지름의 70.7%(1/√2)라서 아이콘이 작아지고 배경만
+/// 넓어 보인다. 받침을 둥근 사각형으로 하면 78%까지 키울 수 있어
+/// 여백이 '패딩'처럼 자연스럽게 보인다.
 class ServiceIcon extends ConsumerWidget {
   const ServiceIcon({
     super.key,
@@ -29,14 +31,14 @@ class ServiceIcon extends ConsumerWidget {
     this.searchTerm,
     this.imageUrl,
     this.size = 56,
-    this.circular = true,
+    this.circular = false,
   });
 
   ServiceIcon.fromCatalog(
     CatalogService service, {
     super.key,
     this.size = 56,
-    this.circular = true,
+    this.circular = false,
   }) : name = service.name,
        brandColor = Color(service.brandColor),
        serviceId = service.id,
@@ -49,7 +51,7 @@ class ServiceIcon extends ConsumerWidget {
     Subscription subscription, {
     Key? key,
     double size = 56,
-    bool circular = true,
+    bool circular = false,
   }) {
     final catalog = subscription.serviceId == null
         ? null
@@ -79,9 +81,14 @@ class ServiceIcon extends ConsumerWidget {
 
   final double size;
 
-  /// 받침 모양. 원형이 기본이고, false 면 둥근 사각형 받침을 쓴다.
+  /// 받침 모양. 기본은 둥근 사각형이고, true 면 원형이다.
   /// 어느 쪽이든 아이콘 자체는 잘리지 않는다.
   final bool circular;
+
+  /// 받침 대비 아이콘 크기.
+  /// 원형은 1/√2(70.7%)가 한계라 여백을 두고 64%,
+  /// 둥근 사각형은 모서리 곡률을 피하는 선에서 78%까지 키운다.
+  double get _iconRatio => circular ? 0.64 : 0.78;
 
   /// 아이콘 URL 캐시 키. 카탈로그에 없는 서비스도 이름으로 캐시해서
   /// 직접 추가한 구독도 목록에서 아이콘이 나온다.
@@ -92,9 +99,6 @@ class ServiceIcon extends ConsumerWidget {
   }
 
   String get _term => (searchTerm ?? name).trim();
-
-  /// 받침 지름 대비 아이콘 크기. 0.707 이 한계이므로 여백을 두고 0.64.
-  static const _iconRatio = 0.64;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -111,9 +115,9 @@ class ServiceIcon extends ConsumerWidget {
                   .value);
 
     // 브랜드 색을 아주 옅게만 깔아 서비스마다 다른 느낌을 주되,
-    // 화면 전체가 알록달록해지지 않게 14%만 섞는다.
+    // 화면 전체가 알록달록해지지 않게 10%만 섞는다.
     final plate = Color.alphaBlend(
-      brandColor.withValues(alpha: 0.14),
+      brandColor.withValues(alpha: 0.10),
       theme.colorScheme.surface,
     );
 

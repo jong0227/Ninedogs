@@ -143,11 +143,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               AppSpacing.screenH,
               AppSpacing.xxl,
             ),
+            // 4열이면 한 화면에 20개 넘게 들어와서 훑어보기 쉽다.
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: AppSpacing.xl,
-              crossAxisSpacing: AppSpacing.lg,
-              childAspectRatio: 0.74,
+              crossAxisCount: 4,
+              mainAxisSpacing: AppSpacing.lg,
+              crossAxisSpacing: AppSpacing.md,
+              childAspectRatio: 0.68,
             ),
             itemCount: services.length,
             itemBuilder: (context, index) {
@@ -160,26 +161,36 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             },
           ),
         ),
+        // 고르기만 하면 끝난다. 요금제와 시작일은 기본값으로 채우고,
+        // 굳이 손보고 싶은 사람만 두 번째 단계로 간다.
         _BottomBar(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (_selected.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Text(
+                    '기본 요금제로 등록돼요. 나중에 언제든 바꿀 수 있어요.',
+                    style: theme.textTheme.labelMedium,
+                  ),
+                ),
               FilledButton(
-                onPressed: _selected.isEmpty
-                    ? null
-                    : () => setState(() => _reviewing = true),
+                onPressed: _selected.isEmpty ? null : _finish,
                 child: Text(
                   _selected.isEmpty
                       ? '구독 중인 서비스를 골라주세요'
-                      : '${_selected.length}개 선택 · 다음',
+                      : '${_selected.length}개로 시작하기',
                 ),
               ),
-              // 목록에 없는 것만 쓰는 사람도 있으니 빈 채로 시작할 길을 열어둔다.
-              if (_selected.isEmpty)
-                TextButton(
-                  onPressed: _skip,
-                  child: const Text('나중에 직접 추가할게요'),
+              TextButton(
+                onPressed: _selected.isEmpty
+                    ? _skip
+                    : () => setState(() => _reviewing = true),
+                child: Text(
+                  _selected.isEmpty ? '나중에 직접 추가할게요' : '요금제·시작일 직접 고르기',
                 ),
+              ),
             ],
           ),
         ),
@@ -381,28 +392,27 @@ class _ServiceTile extends StatelessWidget {
                       duration: const Duration(milliseconds: 160),
                       width: diameter,
                       height: diameter,
-                      padding: const EdgeInsets.all(3),
+                      padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(diameter * 0.30),
                         border: Border.all(
                           color: selected
                               ? AppColors.accent
                               : Colors.transparent,
-                          width: 2.5,
+                          width: 2,
                         ),
                       ),
                       child: ServiceIcon.fromCatalog(
                         service,
-                        size: diameter - 11,
-                        circular: true,
+                        size: diameter - 8,
                       ),
                     ),
                     if (selected)
                       Positioned(
-                        top: 0,
-                        right: 0,
+                        top: -4,
+                        right: -4,
                         child: Container(
-                          padding: const EdgeInsets.all(3),
+                          padding: const EdgeInsets.all(2),
                           decoration: BoxDecoration(
                             color: AppColors.accent,
                             shape: BoxShape.circle,
@@ -413,7 +423,7 @@ class _ServiceTile extends StatelessWidget {
                           ),
                           child: const Icon(
                             Icons.check,
-                            size: 13,
+                            size: 11,
                             color: AppColors.onAccent,
                           ),
                         ),
@@ -423,7 +433,7 @@ class _ServiceTile extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           Flexible(
             child: Text(
               service.name,
@@ -431,10 +441,12 @@ class _ServiceTile extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                height: 1.25,
-                color: theme.colorScheme.onSurface,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+                color: selected
+                    ? theme.colorScheme.onSurface
+                    : theme.textTheme.labelMedium?.color,
               ),
             ),
           ),

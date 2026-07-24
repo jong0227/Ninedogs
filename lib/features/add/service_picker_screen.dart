@@ -82,10 +82,10 @@ class _ServicePickerScreenState extends ConsumerState<ServicePickerScreen> {
                   AppSpacing.xxl,
                 ),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: AppSpacing.xl,
-                  crossAxisSpacing: AppSpacing.lg,
-                  childAspectRatio: 0.74,
+                  crossAxisCount: 4,
+                  mainAxisSpacing: AppSpacing.lg,
+                  crossAxisSpacing: AppSpacing.md,
+                  childAspectRatio: 0.68,
                 ),
                 itemCount: results.length,
                 itemBuilder: (context, index) {
@@ -143,14 +143,11 @@ class _PickerTile extends StatelessWidget {
           AspectRatio(
             aspectRatio: 1,
             child: LayoutBuilder(
-              builder: (context, constraints) => ServiceIcon.fromCatalog(
-                service,
-                size: constraints.maxWidth,
-                circular: true,
-              ),
+              builder: (context, constraints) =>
+                  ServiceIcon.fromCatalog(service, size: constraints.maxWidth),
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           Flexible(
             child: Text(
               service.name,
@@ -158,10 +155,10 @@ class _PickerTile extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                height: 1.25,
-                color: theme.colorScheme.onSurface,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+                color: theme.textTheme.labelMedium?.color,
               ),
             ),
           ),

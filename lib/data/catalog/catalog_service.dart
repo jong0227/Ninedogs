@@ -8,7 +8,8 @@ enum ServiceCategory {
   productivity('AI·생산성'),
   cloud('클라우드'),
   reading('독서·콘텐츠'),
-  gaming('게임');
+  gaming('게임'),
+  mobility('자동차·기기');
 
   const ServiceCategory(this.label);
   final String label;
