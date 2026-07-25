@@ -11,6 +11,7 @@ import '../../data/models/subscription.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/krw_amount_text.dart';
 import '../../widgets/service_icon.dart';
+import '../edit/period_editor.dart';
 import '../edit/price_history_editor.dart';
 import '../edit/quick_edits.dart';
 import '../edit/resubscribe_sheet.dart';
@@ -198,14 +199,22 @@ class SubscriptionDetailScreen extends ConsumerWidget {
               value: formatDate(subscription.canceledAt!),
             ),
 
-          // 끊었다 다시 구독한 적이 있으면 언제부터 언제까지였는지 보여준다.
-          // 구간이 하나뿐이면 위 '구독 시작'과 같은 말이라 띄우지 않는다.
-          if (subscription.periodCount > 1) ...[
-            const SizedBox(height: AppSpacing.xl),
-            Text('구독 이력', style: theme.textTheme.headlineSmall),
-            const SizedBox(height: AppSpacing.md),
-            _PeriodHistory(subscription: subscription),
-          ],
+          // 끊었다 다시 구독한 기록. 직접 넣고 고치고 지울 수 있어야 해서
+          // 구간이 하나뿐일 때도 띄운다.
+          const SizedBox(height: AppSpacing.xl),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('구독 이력', style: theme.textTheme.headlineSmall),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline, size: 20),
+                tooltip: '이력 추가',
+                color: AppColors.accent,
+                onPressed: () => showPeriodEditor(context, ref, subscription),
+              ),
+            ],
+          ),
+          _PeriodHistory(subscription: subscription),
 
           const SizedBox(height: AppSpacing.xl),
           Row(
@@ -439,13 +448,14 @@ class _IncludedBadge extends StatelessWidget {
 }
 
 /// 구독했다 끊은 구간들. 언제부터 언제까지, 그 사이 얼마를 냈는지.
-class _PeriodHistory extends StatelessWidget {
+/// 눌러서 고치거나 지울 수 있다.
+class _PeriodHistory extends ConsumerWidget {
   const _PeriodHistory({required this.subscription});
 
   final Subscription subscription;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final periods = subscription.allPeriods;
 
     return Column(
@@ -459,6 +469,12 @@ class _PeriodHistory extends StatelessWidget {
               startedAt: periods[i].startedAt,
               endedAt: periods[i].endedAt,
               index: i + 1,
+              onTap: () => showPeriodEditor(
+                context,
+                ref,
+                subscription,
+                existing: periods[i],
+              ),
             ),
           ),
       ],
@@ -472,12 +488,14 @@ class _PeriodRow extends StatelessWidget {
     required this.startedAt,
     required this.endedAt,
     required this.index,
+    required this.onTap,
   });
 
   final Subscription subscription;
   final DateTime startedAt;
   final DateTime? endedAt;
   final int index;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -497,65 +515,82 @@ class _PeriodRow extends StatelessWidget {
       spent += subscription.priceAt(date);
     }
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+    return Material(
+      color: theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: ongoing
-            ? Border.all(color: AppColors.accent.withValues(alpha: 0.5))
-            : null,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 22,
-            height: 22,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: ongoing
-                  ? AppColors.accent
-                  : theme.textTheme.labelMedium?.color?.withValues(alpha: 0.25),
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              '$index',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: ongoing
-                    ? AppColors.onAccent
-                    : theme.colorScheme.onSurface,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: ongoing
+                ? Border.all(color: AppColors.accent.withValues(alpha: 0.5))
+                : null,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: ongoing
+                      ? AppColors.accent
+                      : theme.textTheme.labelMedium?.color?.withValues(
+                          alpha: 0.25,
+                        ),
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '$index',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: ongoing
+                        ? AppColors.onAccent
+                        : theme.colorScheme.onSurface,
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  ongoing
-                      ? '${formatDate(startedAt)} ~ 지금'
-                      : '${formatDate(startedAt)} ~ ${formatDate(endedAt!)}',
-                  style: theme.textTheme.bodyMedium?.merge(AppTheme.numeric),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      ongoing
+                          ? '${formatDate(startedAt)} ~ 지금'
+                          : '${formatDate(startedAt)} ~ ${formatDate(endedAt!)}',
+                      style: theme.textTheme.bodyMedium?.merge(
+                        AppTheme.numeric,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${formatDuration(startedAt, endedAt)} · ${dates.length}번 결제',
+                      style: theme.textTheme.labelMedium,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${formatDuration(startedAt, endedAt)} · ${dates.length}번 결제',
-                  style: theme.textTheme.labelMedium,
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              KrwAmountText(
+                spent,
+                style: theme.textTheme.bodyMedium
+                    ?.merge(AppTheme.numeric)
+                    .copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Icon(
+                Icons.chevron_right,
+                size: 16,
+                color: theme.textTheme.labelMedium?.color,
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          KrwAmountText(
-            spent,
-            style: theme.textTheme.bodyMedium?.merge(AppTheme.numeric).copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

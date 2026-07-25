@@ -296,6 +296,92 @@ void main() {
     });
   });
 
+  group('구독 이력 직접 편집', () {
+    test('구간을 추가하면 가장 늦게 시작한 것이 지금 구간이 된다', () async {
+      final subject = await notifier();
+
+      await subject.setPeriods('netflix-1', [
+        (startedAt: DateTime(2025, 1, 1), endedAt: DateTime(2025, 5, 1)),
+        (startedAt: DateTime(2026, 1, 1), endedAt: null),
+      ]);
+
+      final updated = current();
+      expect(updated.periodCount, 2);
+      expect(updated.startedAt, DateTime(2026, 1, 1));
+      expect(updated.isActive, isTrue);
+      expect(updated.pastPeriods.single.startedAt, DateTime(2025, 1, 1));
+    });
+
+    test('잘못 넣은 구간을 빼면 원래대로 돌아간다', () async {
+      final subject = await notifier();
+      await subject.setPeriods('netflix-1', [
+        (startedAt: DateTime(2025, 1, 1), endedAt: DateTime(2025, 5, 1)),
+        (startedAt: DateTime(2026, 1, 1), endedAt: null),
+      ]);
+      expect(current().periodCount, 2);
+
+      // 실수로 넣은 2025 구간만 빼고 다시 넣는다
+      await subject.setPeriods('netflix-1', [
+        (startedAt: DateTime(2026, 1, 1), endedAt: null),
+      ]);
+
+      final updated = current();
+      expect(updated.periodCount, 1);
+      expect(updated.pastPeriods, isEmpty);
+      expect(updated.startedAt, DateTime(2026, 1, 1));
+      expect(updated.isActive, isTrue);
+    });
+
+    test('지금 구간을 끝난 것으로 바꾸면 해지 상태가 된다', () async {
+      final subject = await notifier();
+
+      await subject.setPeriods('netflix-1', [
+        (startedAt: DateTime(2026, 1, 1), endedAt: DateTime(2026, 6, 1)),
+      ]);
+
+      final updated = current();
+      expect(updated.isActive, isFalse);
+      expect(updated.canceledAt, DateTime(2026, 6, 1));
+    });
+
+    test('해지 상태에서 끝을 지우면 다시 구독 중이 된다', () async {
+      final subject = await notifier();
+      await subject.cancel('netflix-1');
+      expect(current().isActive, isFalse);
+
+      await subject.setPeriods('netflix-1', [
+        (startedAt: DateTime(2026, 1, 1), endedAt: null),
+      ]);
+
+      expect(current().isActive, isTrue);
+      expect(current().canceledAt, isNull);
+    });
+
+    test('빈 목록을 주면 아무것도 바꾸지 않는다', () async {
+      final subject = await notifier();
+
+      await subject.setPeriods('netflix-1', []);
+
+      // 구간이 하나도 없는 구독은 있을 수 없다
+      expect(current().periodCount, 1);
+      expect(current().startedAt, DateTime(2026, 1, 1));
+    });
+
+    test('끝나지 않은 구간이 여럿이면 가장 늦은 것만 남는다', () async {
+      final subject = await notifier();
+
+      await subject.setPeriods('netflix-1', [
+        (startedAt: DateTime(2025, 1, 1), endedAt: null), // 앞선 열린 구간
+        (startedAt: DateTime(2026, 1, 1), endedAt: null),
+      ]);
+
+      final updated = current();
+      // 앞선 열린 구간은 뒤 구간과 겹치므로 버려진다
+      expect(updated.periodCount, 1);
+      expect(updated.startedAt, DateTime(2026, 1, 1));
+    });
+  });
+
   group('가격 이력 직접 편집', () {
     test('과거 시점에 없던 항목을 추가하면 이력에 끼워 들어간다', () async {
       final subject = await notifier();

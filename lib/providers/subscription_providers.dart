@@ -148,6 +148,49 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
     ],
   );
 
+  /// 구독 구간 전체를 갈아끼운다.
+  ///
+  /// 이력을 직접 고칠 수 있어야 한다 — 잘못 넣은 구간을 지우거나, 예전에
+  /// 구독했던 기간을 뒤늦게 채워 넣는 일이 잦다.
+  ///
+  /// 가장 늦게 시작한 구간이 '지금 구간'([Subscription.startedAt] /
+  /// [Subscription.canceledAt])이 되고 나머지는 [Subscription.pastPeriods]
+  /// 로 간다. 아직 안 끝난 구간(endedAt == null)은 마지막 하나만 의미가
+  /// 있으므로, 그보다 앞선 구간에 끝이 없으면 버린다.
+  Future<void> setPeriods(
+    String id,
+    List<({DateTime startedAt, DateTime? endedAt})> periods,
+  ) {
+    if (periods.isEmpty) return Future.value(); // 구간이 하나도 없는 구독은 없다
+
+    final sorted = [...periods]
+      ..sort((a, b) => a.startedAt.compareTo(b.startedAt));
+    final current = sorted.last;
+    final past = <SubscriptionPeriod>[
+      for (final period in sorted.take(sorted.length - 1))
+        if (period.endedAt != null)
+          SubscriptionPeriod(
+            startedAt: period.startedAt,
+            endedAt: period.endedAt!,
+          ),
+    ];
+
+    return _mutate(
+      (subscriptions) => [
+        for (final s in subscriptions)
+          if (s.id == id)
+            s.copyWith(
+              pastPeriods: past,
+              startedAt: current.startedAt,
+              canceledAt: current.endedAt,
+              clearCanceledAt: current.endedAt == null,
+            )
+          else
+            s,
+      ],
+    );
+  }
+
   /// 해지했던 구독을 다시 시작한다.
   ///
   /// 볼 게 생기면 켰다가 끊는 서비스가 흔하다. 예전 기록을 지우고 새로
