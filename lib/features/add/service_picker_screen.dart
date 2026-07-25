@@ -114,6 +114,12 @@ class _ServicePickerScreenState extends ConsumerState<ServicePickerScreen> {
             Expanded(
               child: ServiceBrowser(
                 query: _query,
+                // 이미 등록한 서비스를 흐리게 + '구독 중' 배지로 알린다.
+                // 해지한 건 다시 넣을 수 있어야 하므로 구독 중인 것만 센다.
+                subscribedIds: {
+                  for (final s in ref.watch(activeSubscriptionsProvider))
+                    if (s.serviceId != null) s.serviceId!,
+                },
                 onTap: _pickService,
               ),
             ),

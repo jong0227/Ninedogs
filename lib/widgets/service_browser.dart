@@ -19,6 +19,7 @@ class ServiceBrowser extends StatefulWidget {
     required this.onTap,
     this.query = '',
     this.selectedIds = const {},
+    this.subscribedIds = const {},
     this.bottomPadding = AppSpacing.xxl,
   });
 
@@ -29,6 +30,10 @@ class ServiceBrowser extends StatefulWidget {
 
   /// 선택 표시를 할 서비스들. 비어 있으면 선택 표시를 하지 않는다.
   final Set<String> selectedIds;
+
+  /// 이미 구독 목록에 있는 서비스들. 중복으로 또 추가하지 않도록 표시만 한다.
+  /// 막지는 않는다 — 요금제가 다른 두 계정을 따로 관리할 수도 있다.
+  final Set<String> subscribedIds;
 
   final double bottomPadding;
 
@@ -235,6 +240,7 @@ class _ServiceBrowserState extends State<ServiceBrowser> {
         return ServiceTile(
           service: service,
           selected: widget.selectedIds.contains(service.id),
+          subscribed: widget.subscribedIds.contains(service.id),
           onTap: () => widget.onTap(service),
         );
       }, childCount: services.length),
@@ -354,11 +360,15 @@ class ServiceTile extends StatelessWidget {
     required this.service,
     required this.onTap,
     this.selected = false,
+    this.subscribed = false,
   });
 
   final CatalogService service;
   final VoidCallback onTap;
   final bool selected;
+
+  /// 이미 구독 목록에 있는 서비스. 흐리게 하고 '구독 중' 배지를 붙인다.
+  final bool subscribed;
 
   static void _showHint(BuildContext context, CatalogService service) {
     showDialog<void>(
@@ -409,11 +419,48 @@ class ServiceTile extends StatelessWidget {
                           width: 2.5,
                         ),
                       ),
-                      child: ServiceIcon.fromCatalog(
-                        service,
-                        size: diameter - 10,
+                      // 이미 구독 중이면 흐리게 해서 새로 고를 것들과 구분한다.
+                      child: Opacity(
+                        opacity: subscribed && !selected ? 0.4 : 1,
+                        child: ServiceIcon.fromCatalog(
+                          service,
+                          size: diameter - 10,
+                        ),
                       ),
                     ),
+                    if (subscribed && !selected)
+                      Positioned(
+                        bottom: -2,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent,
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.pill,
+                              ),
+                              border: Border.all(
+                                color: theme.scaffoldBackgroundColor,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: const Text(
+                              '구독 중',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.onAccent,
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     if (selected)
                       Positioned(
                         top: -4,

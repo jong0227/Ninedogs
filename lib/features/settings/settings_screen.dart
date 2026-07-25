@@ -12,6 +12,7 @@ import '../../providers/subscription_providers.dart';
 import '../../providers/sync_providers.dart';
 import '../../providers/usage_providers.dart';
 import '../../providers/vault_providers.dart';
+import '../../widgets/ninedogs_app_bar.dart';
 import '../backup/backup_actions.dart';
 import '../notifications/reminder_picker.dart';
 import '../sync/sync_screen.dart';
@@ -111,7 +112,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final vault = ref.watch(vaultProvider).value;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('설정')),
+      appBar: const NinedogsAppBar(section: '설정'),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.screenH,

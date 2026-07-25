@@ -425,4 +425,130 @@ void main() {
       expect(subscription.copyWith(clearTrial: true).trialEndsAt, isNull);
     });
   });
+
+  group('끊었다 다시 구독한 구간', () {
+    // 1~3월 구독(10,000원) -> 끊음 -> 7월부터 다시(13,500원)
+    Subscription onOff() => Subscription(
+      id: 'test',
+      name: '넷플릭스',
+      cycle: BillingCycle.monthly,
+      pastPeriods: [
+        SubscriptionPeriod(
+          startedAt: DateTime(2026, 1, 1),
+          endedAt: DateTime(2026, 3, 20),
+        ),
+      ],
+      startedAt: DateTime(2026, 7, 1),
+      priceHistory: [
+        PricePoint(
+          effectiveFrom: DateTime(2026, 1, 1),
+          amount: const Money(10000),
+        ),
+        PricePoint(
+          effectiveFrom: DateTime(2026, 7, 1),
+          amount: const Money(13500),
+        ),
+      ],
+    );
+
+    test('안 쓰던 기간에는 결제가 잡히지 않는다', () {
+      final dates = onOff().billingDatesUntil(DateTime(2026, 9, 15));
+
+      // 1/1, 2/1, 3/1 (3/20 해지) 그리고 7/1, 8/1, 9/1
+      expect(dates, [
+        DateTime(2026, 1, 1),
+        DateTime(2026, 2, 1),
+        DateTime(2026, 3, 1),
+        DateTime(2026, 7, 1),
+        DateTime(2026, 8, 1),
+        DateTime(2026, 9, 1),
+      ]);
+      // 4,5,6월은 구독하지 않았으므로 빠져야 한다
+      expect(dates, isNot(contains(DateTime(2026, 4, 1))));
+    });
+
+    test('구간마다 그때의 요금으로 누적 지출을 계산한다', () {
+      // 1~3월 10,000 x 3 + 7~9월 13,500 x 3
+      expect(
+        onOff().totalSpentUntil(DateTime(2026, 9, 15)),
+        const Money(10000 * 3 + 13500 * 3),
+      );
+    });
+
+    test('맨 처음 구독한 날과 지금 구간 시작일을 구분한다', () {
+      final subscription = onOff();
+      expect(subscription.firstStartedAt, DateTime(2026, 1, 1));
+      expect(subscription.startedAt, DateTime(2026, 7, 1));
+      expect(subscription.periodCount, 2);
+    });
+
+    test('안 쓰던 달의 캘린더에는 결제가 없다', () {
+      final subscription = onOff();
+      expect(
+        subscription.billingDatesBetween(
+          DateTime(2026, 5, 1),
+          DateTime(2026, 5, 31),
+        ),
+        isEmpty,
+      );
+      expect(
+        subscription.billingDatesBetween(
+          DateTime(2026, 2, 1),
+          DateTime(2026, 2, 28),
+        ),
+        [DateTime(2026, 2, 1)],
+      );
+    });
+
+    test('구간이 하나뿐이면 예전과 똑같이 동작한다', () {
+      final single = build(
+        startedAt: DateTime(2026, 1, 1),
+        prices: [
+          PricePoint(
+            effectiveFrom: DateTime(2026, 1, 1),
+            amount: const Money(10000),
+          ),
+        ],
+      );
+
+      expect(single.periodCount, 1);
+      expect(single.firstStartedAt, single.startedAt);
+      expect(
+        single.totalSpentUntil(DateTime(2026, 3, 15)),
+        const Money(30000),
+      );
+    });
+
+    test('JSON 으로 왕복해도 구간이 유지된다', () {
+      final restored = Subscription.fromJson(onOff().toJson());
+
+      expect(restored.pastPeriods.length, 1);
+      expect(restored.pastPeriods.single.startedAt, DateTime(2026, 1, 1));
+      expect(restored.pastPeriods.single.endedAt, DateTime(2026, 3, 20));
+      expect(restored.startedAt, DateTime(2026, 7, 1));
+    });
+
+    test('이 필드가 없던 예전 데이터도 그대로 읽힌다', () {
+      final legacy = {
+        'id': 'old',
+        'name': '넷플릭스',
+        'cycle': 'monthly',
+        'startedAt': DateTime(2026, 1, 1).toIso8601String(),
+        'priceHistory': [
+          PricePoint(
+            effectiveFrom: DateTime(2026, 1, 1),
+            amount: const Money(10000),
+          ).toJson(),
+        ],
+      };
+
+      final restored = Subscription.fromJson(legacy);
+      expect(restored.pastPeriods, isEmpty);
+      expect(restored.periodCount, 1);
+      expect(
+        restored.totalSpentUntil(DateTime(2026, 3, 15)),
+        const Money(30000),
+      );
+    });
+  });
 }

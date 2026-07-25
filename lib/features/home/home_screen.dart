@@ -9,6 +9,7 @@ import '../../data/models/subscription.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/krw_amount_text.dart';
+import '../../widgets/ninedogs_app_bar.dart';
 import '../../widgets/service_icon.dart';
 import '../add/service_picker_screen.dart';
 import '../detail/subscription_detail_screen.dart';
@@ -23,24 +24,7 @@ class HomeScreen extends ConsumerWidget {
     final upcoming = ref.watch(upcomingBillingsProvider).take(3).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(7),
-              child: Image.asset(
-                'assets/icon/app_icon.png',
-                width: 28,
-                height: 28,
-                filterQuality: FilterQuality.medium,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            const Text('Ninedogs'),
-          ],
-        ),
-      ),
+      appBar: const NinedogsAppBar(section: '내 구독'),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const ServicePickerScreen()),

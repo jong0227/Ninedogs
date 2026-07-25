@@ -12,6 +12,7 @@ import '../../providers/insight_providers.dart';
 import '../../providers/stats_providers.dart';
 import '../../providers/usage_providers.dart';
 import '../../widgets/krw_amount_text.dart';
+import '../../widgets/ninedogs_app_bar.dart';
 import '../../widgets/service_icon.dart';
 import '../detail/subscription_detail_screen.dart';
 
@@ -57,7 +58,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
         : ref.watch(categoryTotalProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('구독 분석')),
+      appBar: const NinedogsAppBar(section: '구독 분석'),
       body: spends.isEmpty
           ? const _EmptyStats()
           : ListView(

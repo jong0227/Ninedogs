@@ -12,6 +12,7 @@ import '../../providers/app_providers.dart';
 import '../../providers/stats_providers.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/krw_amount_text.dart';
+import '../../widgets/ninedogs_app_bar.dart';
 import '../../widgets/service_icon.dart';
 import '../detail/subscription_detail_screen.dart';
 
@@ -63,7 +64,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final selectedDay = _selected?.day;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('결제 캘린더')),
+      appBar: const NinedogsAppBar(section: '결제 캘린더'),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.screenH,
@@ -436,11 +437,16 @@ class _BillingRow extends StatelessWidget {
             child: Row(
               children: [
                 if (day != null) ...[
+                  // 두 자리 날짜("10일")가 줄바꿈되지 않을 만큼 넓게 잡는다.
+                  // 좁으면 "10 / 일" 로 쪼개져 행 높이가 두 배가 된다.
                   SizedBox(
-                    width: 26,
+                    width: 34,
                     child: Text(
                       '$day일',
                       textAlign: TextAlign.center,
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.visible,
                       style: theme.textTheme.labelMedium,
                     ),
                   ),

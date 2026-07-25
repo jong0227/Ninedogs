@@ -13,6 +13,7 @@ import '../../widgets/krw_amount_text.dart';
 import '../../widgets/service_icon.dart';
 import '../edit/price_history_editor.dart';
 import '../edit/quick_edits.dart';
+import '../edit/resubscribe_sheet.dart';
 import '../edit/subscription_form_screen.dart';
 import '../notifications/reminder_picker.dart';
 import '../vault/credential_section.dart';
@@ -197,6 +198,15 @@ class SubscriptionDetailScreen extends ConsumerWidget {
               value: formatDate(subscription.canceledAt!),
             ),
 
+          // 끊었다 다시 구독한 적이 있으면 언제부터 언제까지였는지 보여준다.
+          // 구간이 하나뿐이면 위 '구독 시작'과 같은 말이라 띄우지 않는다.
+          if (subscription.periodCount > 1) ...[
+            const SizedBox(height: AppSpacing.xl),
+            Text('구독 이력', style: theme.textTheme.headlineSmall),
+            const SizedBox(height: AppSpacing.md),
+            _PeriodHistory(subscription: subscription),
+          ],
+
           const SizedBox(height: AppSpacing.xl),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -264,6 +274,19 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                   ref
                       .read(subscriptionsProvider.notifier)
                       .cancel(subscription.id);
+                },
+              )
+            else
+              ListTile(
+                leading: const Icon(
+                  Icons.play_circle_outline,
+                  color: AppColors.accent,
+                ),
+                title: const Text('다시 구독'),
+                subtitle: const Text('끊었던 기간은 이력에 남아요'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  showResubscribeSheet(context, ref, subscription);
                 },
               ),
             ListTile(
@@ -410,6 +433,129 @@ class _IncludedBadge extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 구독했다 끊은 구간들. 언제부터 언제까지, 그 사이 얼마를 냈는지.
+class _PeriodHistory extends StatelessWidget {
+  const _PeriodHistory({required this.subscription});
+
+  final Subscription subscription;
+
+  @override
+  Widget build(BuildContext context) {
+    final periods = subscription.allPeriods;
+
+    return Column(
+      children: [
+        // 최근 구간이 위로 오게 뒤집는다.
+        for (var i = periods.length - 1; i >= 0; i--)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: _PeriodRow(
+              subscription: subscription,
+              startedAt: periods[i].startedAt,
+              endedAt: periods[i].endedAt,
+              index: i + 1,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _PeriodRow extends StatelessWidget {
+  const _PeriodRow({
+    required this.subscription,
+    required this.startedAt,
+    required this.endedAt,
+    required this.index,
+  });
+
+  final Subscription subscription;
+  final DateTime startedAt;
+  final DateTime? endedAt;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ongoing = endedAt == null;
+
+    // 이 구간에만 걸린 결제를 골라 합산한다. 구간마다 요금이 달랐어도
+    // priceAt() 이 그때 값을 집어주므로 그대로 반영된다.
+    final until = endedAt ?? DateTime.now();
+    final dates = subscription
+        .billingDatesUntil(until)
+        .where((d) => !d.isBefore(startedAt) && !d.isAfter(until))
+        .toList();
+
+    var spent = Money.zero(subscription.currency);
+    for (final date in dates) {
+      spent += subscription.priceAt(date);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: ongoing
+            ? Border.all(color: AppColors.accent.withValues(alpha: 0.5))
+            : null,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: ongoing
+                  ? AppColors.accent
+                  : theme.textTheme.labelMedium?.color?.withValues(alpha: 0.25),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              '$index',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: ongoing
+                    ? AppColors.onAccent
+                    : theme.colorScheme.onSurface,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ongoing
+                      ? '${formatDate(startedAt)} ~ 지금'
+                      : '${formatDate(startedAt)} ~ ${formatDate(endedAt!)}',
+                  style: theme.textTheme.bodyMedium?.merge(AppTheme.numeric),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${formatDuration(startedAt, endedAt)} · ${dates.length}번 결제',
+                  style: theme.textTheme.labelMedium,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          KrwAmountText(
+            spent,
+            style: theme.textTheme.bodyMedium?.merge(AppTheme.numeric).copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

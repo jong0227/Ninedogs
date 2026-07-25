@@ -148,6 +148,44 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
     ],
   );
 
+  /// 해지했던 구독을 다시 시작한다.
+  ///
+  /// 볼 게 생기면 켰다가 끊는 서비스가 흔하다. 예전 기록을 지우고 새로
+  /// 등록하면 그때 낸 돈이 사라지고, 그대로 되살리면 안 쓰던 기간에도
+  /// 결제한 것으로 잡힌다. 끊었던 구간을 이력으로 밀어 넣고 새 구간을
+  /// 연다. [price] 를 주면 그 날부터 새 금액이 적용된다.
+  Future<void> resubscribe(
+    String id, {
+    required DateTime startedAt,
+    Money? price,
+  }) => _mutate(
+    (current) => [
+      for (final s in current)
+        if (s.id == id && !s.isActive)
+          s.copyWith(
+            pastPeriods: [
+              ...s.pastPeriods,
+              SubscriptionPeriod(
+                startedAt: s.startedAt,
+                endedAt: s.canceledAt!,
+              ),
+            ],
+            startedAt: startedAt,
+            clearCanceledAt: true,
+            priceHistory: price == null
+                ? s.priceHistory
+                : [
+                    ...s.priceHistory.where(
+                      (p) => !_sameDay(p.effectiveFrom, startedAt),
+                    ),
+                    PricePoint(effectiveFrom: startedAt, amount: price),
+                  ],
+          )
+        else
+          s,
+    ],
+  );
+
   /// 가격 이력에 임의의 시점 하나를 넣거나 고친다.
   ///
   /// [recordPriceChange] 는 항상 "지금부터"만 다루지만, 이건 과거 어느

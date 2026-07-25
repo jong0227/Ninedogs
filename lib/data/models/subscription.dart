@@ -19,6 +19,30 @@ class PricePoint {
   );
 }
 
+/// 구독했다가 끊은 한 구간.
+///
+/// 볼 게 있을 때만 켜고 끄는 서비스가 흔하다. 그런 이력을 한 줄로 뭉개면
+/// "언제부터 언제까지 봤는지"도, 그 사이 안 낸 돈도 알 수 없다.
+class SubscriptionPeriod {
+  const SubscriptionPeriod({required this.startedAt, required this.endedAt});
+
+  final DateTime startedAt;
+
+  /// 이 구간을 끊은 날.
+  final DateTime endedAt;
+
+  Map<String, Object?> toJson() => {
+    'startedAt': startedAt.toIso8601String(),
+    'endedAt': endedAt.toIso8601String(),
+  };
+
+  factory SubscriptionPeriod.fromJson(Map<String, Object?> json) =>
+      SubscriptionPeriod(
+        startedAt: DateTime.parse(json['startedAt'] as String),
+        endedAt: DateTime.parse(json['endedAt'] as String),
+      );
+}
+
 class Subscription {
   Subscription({
     required this.id,
@@ -37,10 +61,14 @@ class Subscription {
     this.credentialId,
     this.memo,
     this.reminderDaysBefore,
+    List<SubscriptionPeriod> pastPeriods = const [],
   }) : assert(priceHistory.isNotEmpty, '구독은 최소 한 개의 가격 정보가 필요합니다'),
        priceHistory = List.unmodifiable(
          [...priceHistory]
            ..sort((a, b) => a.effectiveFrom.compareTo(b.effectiveFrom)),
+       ),
+       pastPeriods = List.unmodifiable(
+         [...pastPeriods]..sort((a, b) => a.startedAt.compareTo(b.startedAt)),
        );
 
   final String id;
@@ -58,8 +86,16 @@ class Subscription {
   /// 시간순으로 정렬된 가격 이력. 최소 1개.
   final List<PricePoint> priceHistory;
 
-  /// 구독을 시작한 날.
+  /// **지금 구간**을 시작한 날. 끊었다가 다시 구독했다면 마지막으로 다시
+  /// 시작한 날이다. 맨 처음 구독한 날은 [firstStartedAt].
   final DateTime startedAt;
+
+  /// 지금 구간 이전에 구독했다 끊은 구간들. 오래된 것부터.
+  ///
+  /// 여기 담긴 기간에도 결제가 있었으므로 누적 지출에 함께 센다. 그 기간의
+  /// 금액은 [priceHistory] 의 시점별 가격에서 가져온다 — 구간마다 값을 따로
+  /// 들고 있지 않아도 "그때는 얼마였다"가 그대로 반영된다.
+  final List<SubscriptionPeriod> pastPeriods;
 
   /// 실제 카드 결제일 기준. 시작일과 청구일이 다를 때만 채운다.
   final DateTime? billingAnchor;
@@ -141,17 +177,49 @@ class Subscription {
   /// 가격이 바뀐 지점만. (첫 등록 가격은 변동이 아니므로 제외)
   List<PricePoint> get priceChanges => priceHistory.skip(1).toList();
 
+  /// 맨 처음 구독을 시작한 날. 끊었다 다시 시작했어도 가장 이른 날이다.
+  DateTime get firstStartedAt =>
+      pastPeriods.isEmpty ? startedAt : pastPeriods.first.startedAt;
+
+  /// 지금까지의 모든 구독 구간. 오래된 것부터, 마지막이 지금 구간이다.
+  /// 지금 구간의 [SubscriptionPeriod.endedAt] 은 아직 구독 중이면 null 이 될
+  /// 수 없으므로, 진행 중인 구간은 [currentPeriodEnd] 로 따로 본다.
+  List<({DateTime startedAt, DateTime? endedAt})> get allPeriods => [
+    for (final period in pastPeriods)
+      (startedAt: period.startedAt, endedAt: period.endedAt),
+    (startedAt: startedAt, endedAt: canceledAt),
+  ];
+
+  /// 몇 번 구독했다 끊었는지. 지금 구간까지 센다.
+  int get periodCount => pastPeriods.length + 1;
+
+  DateTime? get currentPeriodEnd => canceledAt;
+
   /// 결제가 실제로 일어난 날들. [asOf] 까지 포함한다.
   ///
-  /// 해지했다면 해지일까지만 청구된 것으로 본다.
+  /// 끊었다 다시 구독한 구간이 있으면 각 구간마다 따로 센다. 안 쓰던 기간에
+  /// 결제가 이어진 것으로 잡히면 누적 지출이 실제보다 커진다.
   List<DateTime> billingDatesUntil(DateTime asOf) {
-    final end = _earliest(asOf, canceledAt);
     final dates = <DateTime>[];
-    var date = _anchor;
 
-    // 안전장치: 잘못된 데이터로 무한 루프에 빠지지 않도록 상한을 둔다.
+    for (final period in pastPeriods) {
+      dates.addAll(
+        _datesFrom(period.startedAt, _earliest(asOf, period.endedAt)),
+      );
+    }
+    // 지금 구간만 카드 결제일·무료 체험 기준(_anchor)을 따른다.
+    dates.addAll(_datesFrom(_anchor, _earliest(asOf, canceledAt)));
+
+    return dates;
+  }
+
+  /// [from] 부터 [until] 까지 주기대로 짚은 날들.
+  /// 잘못된 데이터로 무한 루프에 빠지지 않도록 상한을 둔다.
+  List<DateTime> _datesFrom(DateTime from, DateTime until) {
+    final dates = <DateTime>[];
+    var date = from;
     const maxCharges = 2000;
-    while (!date.isAfter(end) && dates.length < maxCharges) {
+    while (!date.isAfter(until) && dates.length < maxCharges) {
       dates.add(date);
       date = cycle.next(date);
     }
@@ -160,9 +228,32 @@ class Subscription {
 
   /// [start] 부터 [end] 까지(양 끝 포함) 사이에 걸린 결제일들.
   /// 캘린더에서 한 달치를 그릴 때 쓴다.
+  ///
+  /// 끊었다 다시 구독한 구간이 있으면 각 구간을 따로 훑는다. 지난 달을
+  /// 넘겨볼 때 그때 실제로 구독 중이었는지가 그대로 드러난다.
   List<DateTime> billingDatesBetween(DateTime start, DateTime end) {
     final dates = <DateTime>[];
-    var date = _anchor;
+
+    for (final period in pastPeriods) {
+      dates.addAll(
+        _datesBetween(period.startedAt, period.endedAt, start, end),
+      );
+    }
+    dates.addAll(_datesBetween(_anchor, canceledAt, start, end));
+
+    dates.sort();
+    return dates;
+  }
+
+  /// 한 구간([from] ~ [periodEnd])의 결제일 중 [start]~[end] 에 걸린 것들.
+  List<DateTime> _datesBetween(
+    DateTime from,
+    DateTime? periodEnd,
+    DateTime start,
+    DateTime end,
+  ) {
+    final dates = <DateTime>[];
+    var date = from;
     var guard = 0;
     const maxSteps = 4000;
 
@@ -172,8 +263,8 @@ class Subscription {
     }
 
     while (!date.isAfter(end) && guard++ < maxSteps) {
-      // 해지한 뒤로는 청구되지 않는다
-      if (canceledAt != null && date.isAfter(canceledAt!)) break;
+      // 끊은 뒤로는 청구되지 않는다
+      if (periodEnd != null && date.isAfter(periodEnd)) break;
       dates.add(date);
       date = cycle.next(date);
     }
@@ -242,6 +333,7 @@ class Subscription {
     String? credentialId,
     String? memo,
     List<int>? reminderDaysBefore,
+    List<SubscriptionPeriod>? pastPeriods,
     bool clearCanceledAt = false,
 
     /// 무료 체험 정보를 지운다. (체험이 끝났거나 잘못 넣은 경우)
@@ -269,6 +361,7 @@ class Subscription {
       reminderDaysBefore: clearReminders
           ? null
           : (reminderDaysBefore ?? this.reminderDaysBefore),
+      pastPeriods: pastPeriods ?? this.pastPeriods,
     );
   }
 
@@ -289,6 +382,7 @@ class Subscription {
     'credentialId': credentialId,
     'memo': memo,
     'reminderDaysBefore': reminderDaysBefore,
+    'pastPeriods': pastPeriods.map((p) => p.toJson()).toList(),
   };
 
   factory Subscription.fromJson(Map<String, Object?> json) => Subscription(
@@ -312,6 +406,13 @@ class Subscription {
     reminderDaysBefore: (json['reminderDaysBefore'] as List?)
         ?.map((e) => (e as num).toInt())
         .toList(),
+    // 이 필드가 생기기 전에 저장된 데이터에는 없다. 없으면 구간이 하나뿐인
+    // 구독으로 읽혀서 예전과 똑같이 동작한다.
+    pastPeriods:
+        (json['pastPeriods'] as List?)
+            ?.map((e) => SubscriptionPeriod.fromJson(e as Map<String, Object?>))
+            .toList() ??
+        const [],
   );
 
   static DateTime? _parseOrNull(Object? value) =>

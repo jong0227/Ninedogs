@@ -238,6 +238,64 @@ void main() {
     });
   });
 
+  group('다시 구독', () {
+    test('끊었던 구간이 이력으로 넘어가고 새 구간이 열린다', () async {
+      final subject = await notifier();
+      await subject.cancel('netflix-1');
+
+      await subject.resubscribe(
+        'netflix-1',
+        startedAt: DateTime(2026, 7, 1),
+        price: const Money(13500),
+      );
+
+      final updated = current();
+      expect(updated.isActive, isTrue);
+      expect(updated.periodCount, 2);
+      expect(updated.startedAt, DateTime(2026, 7, 1));
+      expect(updated.firstStartedAt, DateTime(2026, 1, 1));
+      expect(updated.currentPrice, const Money(13500));
+    });
+
+    test('안 쓰던 기간은 누적 지출에서 빠진다', () async {
+      final subject = await notifier();
+      // 3/20 에 끊은 것으로 만든다
+      await subject.replace(
+        current().copyWith(canceledAt: DateTime(2026, 3, 20)),
+      );
+      await subject.resubscribe(
+        'netflix-1',
+        startedAt: DateTime(2026, 7, 1),
+        price: const Money(13500),
+      );
+
+      // 1,2,3월 10,000 + 7,8,9월 13,500. 4~6월은 없다.
+      expect(
+        current().totalSpentUntil(DateTime(2026, 9, 15)),
+        const Money(10000 * 3 + 13500 * 3),
+      );
+    });
+
+    test('금액을 안 주면 예전 요금 그대로 이어간다', () async {
+      final subject = await notifier();
+      await subject.cancel('netflix-1');
+
+      await subject.resubscribe('netflix-1', startedAt: DateTime(2026, 7, 1));
+
+      expect(current().currentPrice, const Money(10000));
+      expect(current().priceHistory.length, 1);
+    });
+
+    test('구독 중인 것에는 아무 일도 일어나지 않는다', () async {
+      final subject = await notifier();
+
+      await subject.resubscribe('netflix-1', startedAt: DateTime(2026, 7, 1));
+
+      expect(current().periodCount, 1);
+      expect(current().startedAt, DateTime(2026, 1, 1));
+    });
+  });
+
   group('가격 이력 직접 편집', () {
     test('과거 시점에 없던 항목을 추가하면 이력에 끼워 들어간다', () async {
       final subject = await notifier();
