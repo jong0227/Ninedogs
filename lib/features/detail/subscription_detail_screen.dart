@@ -18,6 +18,7 @@ import '../edit/resubscribe_sheet.dart';
 import '../edit/subscription_form_screen.dart';
 import '../notifications/reminder_picker.dart';
 import '../vault/credential_section.dart';
+import 'billing_lookup_sheet.dart';
 
 class SubscriptionDetailScreen extends ConsumerWidget {
   const SubscriptionDetailScreen({super.key, required this.subscriptionId});
@@ -164,6 +165,19 @@ class SubscriptionDetailScreen extends ConsumerWidget {
             label: '구독 시작',
             value: formatDate(subscription.startedAt),
             onTap: () => showStartDateEditor(context, ref, subscription),
+          ),
+          // 가입일을 기억하는 사람은 거의 없다. 알아내는 방법을 알려준다.
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => showBillingLookupSheet(context, subscription),
+              icon: const Icon(Icons.help_outline, size: 16),
+              label: const Text('가입일이 기억나지 않나요?'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.accent,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
           ),
           EditableInfoTile(
             label: '카드 결제일 기준',
