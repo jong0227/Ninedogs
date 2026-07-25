@@ -560,6 +560,20 @@ abstract final class ServiceCatalog {
   /// 네이버플러스)이나 주로 PC 로 쓰는 것(Adobe, Figma)은 앱을 안 열어도
   /// 잘 쓰고 있는 경우가 많아 일부러 뺐다. 여기 없는 서비스는 사용 기록을
   /// 아예 보지 않는다.
+  ///
+  /// 여기 있는 값은 **전부 확인을 거쳤다.** 실기기에 깔린 것은 APK 의 앱
+  /// 이름까지 읽어(`aapt2 dump badging`) 대조했고, 나머지는 Google Play 주소의
+  /// `details?id=` 값으로 확인했다. Play 주소에 패키지명이 그대로 들어가므로
+  /// 기기가 없어도 확인할 수 있다.
+  ///
+  /// 확인하면서 실제로 잡아낸 것들:
+  /// - 왓챠는 `com.frograms.wplay` 다. `com.frograms.watcha` 는 앱 이름이
+  ///   'WATCHA PEDIA' 인 평점 앱이라 구독과 상관없다. 같은 회사라 헷갈린다.
+  /// - 라프텔은 `net.laftel` 이 아니라 `laftel.net.laftel` 이다.
+  /// - Apple TV+ 는 폰용 패키지명을 확정하지 못해 아예 뺐다.
+  ///
+  /// 틀린 패키지명은 조회 결과에 안 잡힐 뿐이라(=아무 말도 안 함) 잘못된
+  /// 안내로 이어지지는 않는다. 그래도 확실하지 않으면 넣지 않는 편이 낫다.
   static const androidPackages = <String, String>{
     'netflix': 'com.netflix.mediaclient',
     'youtube_premium': 'com.google.android.youtube',
@@ -567,9 +581,13 @@ abstract final class ServiceCatalog {
     'tving': 'net.cj.cjhv.gs.tving',
     'wavve': 'kr.co.captv.pooqV2', // 웨이브 (옛 POOQ 패키지를 그대로 쓴다)
     'coupang_play': 'com.coupang.mobile.play',
+    // 왓챠(스트리밍)는 wplay 다. com.frograms.watcha 는 앱 이름이
+    // 'WATCHA PEDIA' 인 평점·리뷰 앱이라 구독과 상관없다. 같은 회사라 헷갈린다.
     'watcha': 'com.frograms.wplay',
-    'laftel': 'net.laftel',
-    'apple_tv': 'com.apple.atve.androidtv.appletv',
+    'laftel': 'laftel.net.laftel',
+    // apple_tv 는 뺐다. com.apple.atve.androidtv.appletv 는 안드로이드 TV
+    // 전용이라 폰에는 깔리지 않는다. 폰용 패키지명을 확인하지 못해, 틀린 값을
+    // 두느니 아예 조회하지 않는 쪽을 골랐다.
     'amazon_prime': 'com.amazon.avod.thirdpartyclient',
     'spotify': 'com.spotify.music',
     'melon': 'com.iloen.melon',
@@ -577,7 +595,7 @@ abstract final class ServiceCatalog {
     'genie': 'com.ktmusic.geniemusic',
     'flo': 'skplanet.musicmate',
     'vibe': 'com.naver.vibe',
-    'millie': 'com.millie.selfdev',
+    'millie': 'kr.co.millie.millieshelf',
     'ridibooks': 'com.initialcoms.ridi',
     'yes24_ebook': 'com.yes24.ebook.fourth',
     'kakaopage': 'com.kakao.page',
