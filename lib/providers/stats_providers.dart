@@ -4,6 +4,7 @@ import '../data/catalog/catalog_service.dart';
 import '../data/catalog/service_catalog.dart';
 import '../data/models/money.dart';
 import '../data/models/subscription.dart';
+import 'app_providers.dart';
 import 'subscription_providers.dart';
 
 /// 한 분야의 지출 묶음.
@@ -38,12 +39,11 @@ ServiceCategory? categoryOf(Subscription subscription) {
 }
 
 /// 구독 중인 것만 분야별로 묶는다. 월 지출이 큰 분야가 앞에 온다.
-///
-/// 통화가 섞여 있으면 비중 계산이 무의미해지므로 **가장 많이 쓰는 통화**
-/// 기준으로만 집계한다. (대부분 원화 하나뿐이다)
+/// 달러 구독은 환율로 원화 환산해서 함께 집계한다.
 final categorySpendProvider = Provider<List<CategorySpend>>((ref) {
   final active = ref.watch(activeSubscriptionsProvider);
-  return _bucketByCategory(active, sortByLifetime: false);
+  final rate = ref.watch(exchangeRateProvider).value;
+  return _bucketByCategory(active, sortByLifetime: false, usdToKrwRate: rate);
 });
 
 /// 분야별 **누적** 지출. 해지한 구독도 함께 센다.
@@ -52,33 +52,38 @@ final categorySpendProvider = Provider<List<CategorySpend>>((ref) {
 /// 낸 돈도 실제로 나간 돈이므로 빼면 총액이 실제보다 작아진다.
 final categoryLifetimeProvider = Provider<List<CategorySpend>>((ref) {
   final all = ref.watch(allSubscriptionsProvider);
-  return _bucketByCategory(all, sortByLifetime: true);
+  final rate = ref.watch(exchangeRateProvider).value;
+  return _bucketByCategory(all, sortByLifetime: true, usdToKrwRate: rate);
 });
 
 /// 구독 목록을 분야별로 묶는다.
 ///
-/// 통화가 섞여 있으면 비중 계산이 무의미해지므로 **가장 많이 쓰는 통화**
-/// 기준으로만 집계한다. (대부분 원화 하나뿐이다)
+/// 예전엔 통화가 섞이면 "가장 많이 쓰는 통화"만 남기고 나머지는 통째로
+/// 뺐다 — 그래서 원화 구독이 많은 사람이 달러로 등록한 서비스 하나를
+/// 추가하면 그게 분야 목록·개수·합계 어디에도 안 잡히는 버그가 있었다.
+/// 지금은 전부 원화로 환산해서 하나로 합친다. 환율을 아직 못 받아왔으면
+/// (앱을 막 켰을 때) 그 구독은 목록에는 보이되 합계에서는 잠깐 빠진다 —
+/// 안 보이는 것보다 낫고, 환율이 오는 대로 다시 계산된다.
 List<CategorySpend> _bucketByCategory(
   List<Subscription> subscriptions, {
   required bool sortByLifetime,
+  required double? usdToKrwRate,
 }) {
   if (subscriptions.isEmpty) return const [];
 
-  final currency = _dominantCurrency(subscriptions);
   final buckets = <ServiceCategory?, List<Subscription>>{};
-
   for (final subscription in subscriptions) {
-    if (subscription.currency != currency) continue;
     buckets.putIfAbsent(categoryOf(subscription), () => []).add(subscription);
   }
 
   final result = buckets.entries.map((entry) {
-    var monthly = Money.zero(currency);
-    var lifetime = Money.zero(currency);
+    var monthly = Money.zero();
+    var lifetime = Money.zero();
     for (final subscription in entry.value) {
-      monthly += subscription.monthlyCost;
-      lifetime += subscription.totalSpent;
+      final monthlyKrw = _krwOrNull(subscription.monthlyCost, usdToKrwRate);
+      final lifetimeKrw = _krwOrNull(subscription.totalSpent, usdToKrwRate);
+      if (monthlyKrw != null) monthly += monthlyKrw;
+      if (lifetimeKrw != null) lifetime += lifetimeKrw;
     }
     return CategorySpend(
       category: entry.key,
@@ -94,6 +99,14 @@ List<CategorySpend> _bucketByCategory(
         : b.monthly.minor.compareTo(a.monthly.minor),
   );
   return result;
+}
+
+/// 원화면 그대로, 달러면 환율로 환산해서 돌려준다. 환율이 아직 없는데
+/// 달러라서 환산할 수 없으면 null — 그 항목만 합계에서 빠진다.
+Money? _krwOrNull(Money money, double? usdToKrwRate) {
+  if (money.currency == Money.krw) return money;
+  if (usdToKrwRate == null) return null;
+  return money.toKrw(usdToKrwRate);
 }
 
 /// 통계에 쓰는 기준 통화의 월 합계. 비중(%) 계산의 분모다.
@@ -119,21 +132,3 @@ final categoryLifetimeTotalProvider = Provider<Money>((ref) {
   }
   return total;
 });
-
-/// 구독 수가 가장 많은 통화. 동률이면 원화를 우선한다.
-String _dominantCurrency(List<Subscription> subscriptions) {
-  final counts = <String, int>{};
-  for (final subscription in subscriptions) {
-    counts[subscription.currency] = (counts[subscription.currency] ?? 0) + 1;
-  }
-
-  var best = Money.krw;
-  var bestCount = -1;
-  counts.forEach((currency, count) {
-    if (count > bestCount || (count == bestCount && currency == Money.krw)) {
-      best = currency;
-      bestCount = count;
-    }
-  });
-  return best;
-}

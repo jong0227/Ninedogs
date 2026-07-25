@@ -60,5 +60,25 @@ void main() {
       const original = Money(2900, currency: 'USD');
       expect(Money.fromJson(original.toJson()), original);
     });
+
+    group('환율 환산', () {
+      test('달러를 환율로 원화 환산한다', () {
+        // $20 * 1400 = 28,000원
+        final converted = const Money(2000, currency: 'USD').toKrw(1400);
+        expect(converted.currency, Money.krw);
+        expect(converted, const Money(28000));
+      });
+
+      test('환산 결과는 반올림한다', () {
+        // $9.99 * 1362.5 = 13,611.375 -> 13,611
+        final converted = const Money(999, currency: 'USD').toKrw(1362.5);
+        expect(converted, const Money(13611));
+      });
+
+      test('이미 원화면 그대로 돌려준다', () {
+        const money = Money(13500);
+        expect(money.toKrw(1400), same(money));
+      });
+    });
   });
 }

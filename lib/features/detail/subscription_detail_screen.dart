@@ -6,13 +6,25 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/catalog/service_catalog.dart';
+import '../../data/models/money.dart';
 import '../../data/models/subscription.dart';
+import '../../providers/app_providers.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/service_icon.dart';
+import '../edit/price_history_editor.dart';
 import '../edit/quick_edits.dart';
 import '../edit/subscription_form_screen.dart';
 import '../notifications/reminder_picker.dart';
 import '../vault/credential_section.dart';
+
+/// 달러 구독 옆에 붙이는 원화 환산 문구. 환율을 아직 못 받아왔으면
+/// 대략값이라도 있어야 하는데(ExchangeRateService 참고) 그래도 비동기라
+/// 첫 프레임엔 없을 수 있어 그 순간만 조용히 아무것도 안 보여준다.
+String _krwCaption(WidgetRef ref, Subscription subscription) {
+  final rate = ref.watch(exchangeRateProvider).value;
+  if (rate == null) return '';
+  return '약 ${subscription.currentPrice.toKrw(rate).format()}';
+}
 
 class SubscriptionDetailScreen extends ConsumerWidget {
   const SubscriptionDetailScreen({super.key, required this.subscriptionId});
@@ -30,6 +42,9 @@ class SubscriptionDetailScreen extends ConsumerWidget {
 
     final theme = Theme.of(context);
     final charges = subscription.billingDatesUntil(DateTime.now()).length;
+    final krwCaption = subscription.currency == Money.krw
+        ? ''
+        : _krwCaption(ref, subscription);
 
     return Scaffold(
       appBar: AppBar(
@@ -86,6 +101,19 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                     // 잘못 입력된 줄 안다.
                     if (subscription.currentPrice.isZero)
                       _IncludedBadge(subscription: subscription),
+                    // 달러로 결제해도 감이 오도록 원화 환산을 같이 보여준다.
+                    // 환율을 아직 못 받아왔으면(앱을 막 켠 순간) 빈 문구라
+                    // 그 잠깐은 아무것도 안 보여준다.
+                    if (krwCaption.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          krwCaption,
+                          style: theme.textTheme.labelMedium?.merge(
+                            AppTheme.numeric,
+                          ),
+                        ),
+                      ),
                     // 월 7,900원은 싸 보이지만 1년이면 9만원이 넘는다.
                     // 연 환산을 보여주면 유지할지 판단이 달라진다.
                     if (!subscription.currentPrice.isZero)
@@ -176,12 +204,27 @@ class SubscriptionDetailScreen extends ConsumerWidget {
               value: formatDate(subscription.canceledAt!),
             ),
 
-          if (subscription.priceChanges.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xl),
-            Text('가격 변동', style: theme.textTheme.headlineSmall),
-            const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.xl),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('가격 변동', style: theme.textTheme.headlineSmall),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline, size: 20),
+                tooltip: '이전 가격 추가',
+                color: AppColors.accent,
+                onPressed: () =>
+                    showPriceHistoryEditor(context, ref, subscription),
+              ),
+            ],
+          ),
+          if (subscription.priceChanges.isEmpty)
+            Text(
+              '아직 바뀐 적 없어요. 예전엔 다른 금액이었다면 위 + 로 추가하세요.',
+              style: theme.textTheme.labelMedium,
+            )
+          else
             _PriceHistory(subscription: subscription),
-          ],
 
           const SizedBox(height: AppSpacing.xl),
           SubscriptionReminderCard(subscription: subscription),
@@ -379,39 +422,56 @@ class _IncludedBadge extends StatelessWidget {
   }
 }
 
-class _PriceHistory extends StatelessWidget {
+class _PriceHistory extends ConsumerWidget {
   const _PriceHistory({required this.subscription});
 
   final Subscription subscription;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final history = subscription.priceHistory;
 
     return Column(
       children: [
         for (var i = history.length - 1; i >= 0; i--)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: Row(
-              children: [
-                Text(
-                  formatDate(history[i].effectiveFrom),
-                  style: theme.textTheme.labelMedium,
-                ),
-                const Spacer(),
-                Text(
-                  history[i].amount.format(),
-                  style: theme.textTheme.bodyMedium,
-                ),
-                if (i > 0) ...[
+          InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            // 눌러서 그 시점의 금액·날짜를 고치거나 잘못 넣은 항목을 지운다.
+            onTap: () => showPriceHistoryEditor(
+              context,
+              ref,
+              subscription,
+              existing: history[i],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              child: Row(
+                children: [
+                  Text(
+                    formatDate(history[i].effectiveFrom),
+                    style: theme.textTheme.labelMedium,
+                  ),
+                  const Spacer(),
+                  Text(
+                    history[i].amount.format(),
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  if (i > 0) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    _ChangeBadge(
+                      delta:
+                          history[i].amount.minor - history[i - 1].amount.minor,
+                    ),
+                  ],
                   const SizedBox(width: AppSpacing.sm),
-                  _ChangeBadge(
-                    delta: history[i].amount.minor - history[i - 1].amount.minor,
+                  Icon(
+                    Icons.chevron_right,
+                    size: 16,
+                    color: theme.textTheme.labelMedium?.color,
                   ),
                 ],
-              ],
+              ),
             ),
           ),
       ],

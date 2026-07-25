@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/exchange/exchange_rate_service.dart';
 import '../data/icons/icon_palette.dart';
 import '../data/icons/icon_resolver.dart';
 import '../data/update/apk_installer.dart';
@@ -82,6 +83,18 @@ final appVersionProvider = FutureProvider<String>(
 final updateCheckerProvider = Provider<UpdateChecker>((ref) => UpdateChecker());
 
 final apkInstallerProvider = Provider<ApkInstaller>((ref) => const ApkInstaller());
+
+final exchangeRateServiceProvider = Provider<ExchangeRateService>(
+  (ref) => ExchangeRateService(),
+);
+
+/// 지금 쓸 USD -> KRW 환율. 실패해도 캐시나 대략값으로 대체하므로
+/// (ExchangeRateService 참고) 이 provider 는 null 을 주지 않는다.
+final exchangeRateProvider = FutureProvider<double>(
+  (ref) => ref
+      .watch(exchangeRateServiceProvider)
+      .rate(ref.watch(sharedPreferencesProvider)),
+);
 
 typedef IconRequest = ({String serviceId, String searchTerm, String? domain});
 

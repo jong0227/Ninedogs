@@ -95,6 +95,8 @@ class _SummaryCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final monthly = ref.watch(monthlyTotalProvider);
     final lifetime = ref.watch(lifetimeTotalProvider);
+    final monthlyKrw = ref.watch(monthlyTotalKrwProvider);
+    final lifetimeKrw = ref.watch(lifetimeTotalKrwProvider);
     final count = ref.watch(activeSubscriptionsProvider).length;
 
     // 카드를 누르면 통계 탭으로 넘어간다. 요약 숫자를 보고 자세히 보고
@@ -120,7 +122,7 @@ class _SummaryCard extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),
-              _TotalAmount(totals: monthly, large: true),
+              _TotalAmount(totals: monthly, krwTotal: monthlyKrw, large: true),
               const SizedBox(height: AppSpacing.lg),
               Divider(color: theme.dividerColor, height: 1),
               const SizedBox(height: AppSpacing.lg),
@@ -132,7 +134,7 @@ class _SummaryCard extends ConsumerWidget {
                       children: [
                         Text('지금까지 쓴 돈', style: theme.textTheme.labelMedium),
                         const SizedBox(height: AppSpacing.xs),
-                        _TotalAmount(totals: lifetime),
+                        _TotalAmount(totals: lifetime, krwTotal: lifetimeKrw),
                       ],
                     ),
                   ),
@@ -159,23 +161,29 @@ class _SummaryCard extends ConsumerWidget {
   }
 }
 
-/// 통화가 섞여 있으면 금액이 큰 통화를 앞에 크게, 나머지는 작게 덧붙인다.
+/// 달러 구독이 섞여 있어도 환율로 환산한 원화 한 숫자로 보여준다.
+/// 환율을 아직 못 받아왔으면(krwTotal 이 null) 통화별로 나눠 보여준다.
 class _TotalAmount extends StatelessWidget {
-  const _TotalAmount({required this.totals, this.large = false});
+  const _TotalAmount({required this.totals, this.krwTotal, this.large = false});
 
   final Map<String, Money> totals;
+  final Money? krwTotal;
   final bool large;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final style = large
+        ? theme.textTheme.displaySmall
+        : theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700);
+
+    final combined = krwTotal;
+    if (combined != null) {
+      return Text(combined.format(), style: style);
+    }
+
     if (totals.isEmpty) {
-      return Text(
-        Money.zero().format(),
-        style: large
-            ? theme.textTheme.displaySmall
-            : theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-      );
+      return Text(Money.zero().format(), style: style);
     }
 
     final entries = totals.values.toList();

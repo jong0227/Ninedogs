@@ -148,6 +148,51 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
     ],
   );
 
+  /// 가격 이력에 임의의 시점 하나를 넣거나 고친다.
+  ///
+  /// [recordPriceChange] 는 항상 "지금부터"만 다루지만, 이건 과거 어느
+  /// 시점이든 된다 — 처음 등록할 때 놓친 과거의 가격 변동("이 달부터는
+  /// 얼마였다")을 나중에 채워 넣을 때 쓴다. 같은 날짜에 이미 항목이 있으면
+  /// 그 값을 덮어쓴다. 순서와 상관없이 Subscription 생성자가 시점순으로
+  /// 다시 정렬하므로 여기서는 신경 쓰지 않아도 된다.
+  Future<void> upsertPriceHistoryPoint(String id, PricePoint point) => _mutate(
+    (current) => [
+      for (final s in current)
+        if (s.id == id)
+          s.copyWith(
+            priceHistory: [
+              ...s.priceHistory.where(
+                (p) => !_sameDay(p.effectiveFrom, point.effectiveFrom),
+              ),
+              point,
+            ],
+          )
+        else
+          s,
+    ],
+  );
+
+  /// 잘못 추가한 가격 이력 한 점을 지운다. 최소 1개는 남아 있어야 한다.
+  Future<void> removePriceHistoryPoint(
+    String id,
+    DateTime effectiveFrom,
+  ) => _mutate(
+    (current) => [
+      for (final s in current)
+        if (s.id == id && s.priceHistory.length > 1)
+          s.copyWith(
+            priceHistory: s.priceHistory
+                .where((p) => !_sameDay(p.effectiveFrom, effectiveFrom))
+                .toList(),
+          )
+        else
+          s,
+    ],
+  );
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
   /// 금액을 잘못 적었을 때 쓰는 정정. 가격이 바뀐 게 아니므로 이력을 늘리지
   /// 않고 마지막 항목을 교체한다. 누적 지출도 새 금액 기준으로 다시 계산된다.
   Future<void> correctLatestPrice(String id, Money price) => _mutate(
@@ -222,6 +267,40 @@ final monthlyTotalProvider = Provider<Map<String, Money>>(
 final lifetimeTotalProvider = Provider<Map<String, Money>>(
   (ref) => _sumByCurrency(ref.watch(allSubscriptionsProvider).map((s) => s.totalSpent)),
 );
+
+/// 통화가 섞여 있어도 하나의 원화 숫자로 보고 싶을 때 쓴다.
+/// 환율을 아직 못 받아왔으면 null — 그때는 화면에서 통화별 합계로 대신 보여준다.
+final monthlyTotalKrwProvider = Provider<Money?>(
+  (ref) => _combineToKrw(
+    ref.watch(monthlyTotalProvider),
+    ref.watch(exchangeRateProvider).value,
+  ),
+);
+
+final lifetimeTotalKrwProvider = Provider<Money?>(
+  (ref) => _combineToKrw(
+    ref.watch(lifetimeTotalProvider),
+    ref.watch(exchangeRateProvider).value,
+  ),
+);
+
+/// 통화별 합계를 전부 원화로 바꿔 하나로 더한다.
+/// KRW·USD 말고 다른 통화가 섞여 있거나 환율이 없으면 null.
+Money? _combineToKrw(Map<String, Money> totals, double? usdToKrwRate) {
+  if (totals.isEmpty) return Money.zero();
+
+  var combined = 0;
+  for (final entry in totals.entries) {
+    if (entry.key == Money.krw) {
+      combined += entry.value.minor;
+    } else if (entry.key == 'USD' && usdToKrwRate != null) {
+      combined += entry.value.toKrw(usdToKrwRate).minor;
+    } else {
+      return null;
+    }
+  }
+  return Money(combined);
+}
 
 /// 결제일이 가까운 순서대로 정렬한 구독 목록.
 final upcomingBillingsProvider = Provider<List<Subscription>>((ref) {

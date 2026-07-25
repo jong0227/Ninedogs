@@ -4,6 +4,7 @@ import 'package:ninedogs/data/models/billing_cycle.dart';
 import 'package:ninedogs/data/models/money.dart';
 import 'package:ninedogs/data/models/subscription.dart';
 import 'package:ninedogs/data/repository/subscription_repository.dart';
+import 'package:ninedogs/providers/app_providers.dart';
 import 'package:ninedogs/providers/subscription_providers.dart';
 
 class FakeRepository implements SubscriptionRepository {
@@ -178,5 +179,140 @@ void main() {
     final totals = container.read(monthlyTotalProvider);
     expect(totals['KRW'], const Money(10000));
     expect(totals['USD'], const Money(2000, currency: 'USD'));
+  });
+
+  group('원화 통합 합계', () {
+    test('환율이 있으면 통화가 섞여도 하나의 원화 숫자로 합쳐진다', () async {
+      final subject = await notifier();
+      await subject.add(
+        Subscription(
+          id: 'chatgpt-1',
+          name: 'ChatGPT',
+          cycle: BillingCycle.monthly,
+          startedAt: DateTime(2026, 1, 1),
+          priceHistory: [
+            PricePoint(
+              effectiveFrom: DateTime(2026, 1, 1),
+              amount: const Money(2000, currency: 'USD'), // $20
+            ),
+          ],
+        ),
+      );
+
+      final krwContainer = ProviderContainer.test(
+        overrides: [
+          subscriptionRepositoryProvider.overrideWithValue(repository),
+          exchangeRateProvider.overrideWith((ref) async => 1400),
+        ],
+      );
+      addTearDown(krwContainer.dispose);
+      await krwContainer.read(subscriptionsProvider.future);
+      await krwContainer.read(exchangeRateProvider.future);
+
+      // 10,000(넷플릭스) + 20*1400=28,000(ChatGPT) = 38,000
+      expect(
+        krwContainer.read(monthlyTotalKrwProvider),
+        const Money(38000),
+      );
+    });
+
+    test('환율을 못 받아왔으면 null 이라 화면이 통화별 표시로 돌아간다', () async {
+      final subject = await notifier();
+      await subject.add(
+        Subscription(
+          id: 'chatgpt-1',
+          name: 'ChatGPT',
+          cycle: BillingCycle.monthly,
+          startedAt: DateTime(2026, 1, 1),
+          priceHistory: [
+            PricePoint(
+              effectiveFrom: DateTime(2026, 1, 1),
+              amount: const Money(2000, currency: 'USD'),
+            ),
+          ],
+        ),
+      );
+
+      // exchangeRateProvider 를 오버라이드하지 않으면 로딩 상태로 남는다.
+      expect(container.read(monthlyTotalKrwProvider), isNull);
+    });
+  });
+
+  group('가격 이력 직접 편집', () {
+    test('과거 시점에 없던 항목을 추가하면 이력에 끼워 들어간다', () async {
+      final subject = await notifier();
+
+      await subject.upsertPriceHistoryPoint(
+        'netflix-1',
+        PricePoint(
+          effectiveFrom: DateTime(2026, 6, 1),
+          amount: const Money(13500),
+        ),
+      );
+
+      final history = current().priceHistory;
+      expect(history.length, 2);
+      expect(history[0].amount, const Money(10000)); // 1월부터
+      expect(history[1].amount, const Money(13500)); // 6월부터
+    });
+
+    test('같은 날짜에 다시 넣으면 그 항목을 덮어쓴다', () async {
+      final subject = await notifier();
+
+      await subject.upsertPriceHistoryPoint(
+        'netflix-1',
+        PricePoint(
+          effectiveFrom: DateTime(2026, 1, 1), // 시작일과 같은 날
+          amount: const Money(9900),
+        ),
+      );
+
+      final history = current().priceHistory;
+      expect(history.length, 1);
+      expect(history.single.amount, const Money(9900));
+    });
+
+    test('중간에 끼워 넣은 과거 시점이 누적 지출 계산에 반영된다', () async {
+      final subject = await notifier();
+      // 원래: 1월부터 10,000원. 실제로는 4월부터 13,500원으로 올랐다고 뒤늦게 기록.
+      await subject.upsertPriceHistoryPoint(
+        'netflix-1',
+        PricePoint(
+          effectiveFrom: DateTime(2026, 4, 1),
+          amount: const Money(13500),
+        ),
+      );
+
+      final updated = current();
+      // 1,2,3월은 10,000원씩, 4,5,6월은 13,500원씩
+      final total = updated.totalSpentUntil(DateTime(2026, 6, 15));
+      expect(total, const Money(10000 * 3 + 13500 * 3));
+    });
+
+    test('항목을 지우면 이력에서 빠진다', () async {
+      final subject = await notifier();
+      await subject.upsertPriceHistoryPoint(
+        'netflix-1',
+        PricePoint(
+          effectiveFrom: DateTime(2026, 6, 1),
+          amount: const Money(13500),
+        ),
+      );
+
+      await subject.removePriceHistoryPoint('netflix-1', DateTime(2026, 6, 1));
+
+      final history = current().priceHistory;
+      expect(history.length, 1);
+      expect(history.single.amount, const Money(10000));
+    });
+
+    test('마지막 하나 남은 항목은 지울 수 없다', () async {
+      final subject = await notifier();
+
+      await subject.removePriceHistoryPoint('netflix-1', DateTime(2026, 1, 1));
+
+      // 아무 일도 일어나지 않아야 한다 — 가격 이력이 하나도 없는 구독은 안 된다.
+      expect(current().priceHistory.length, 1);
+    });
   });
 }

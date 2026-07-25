@@ -91,6 +91,17 @@ class Money implements Comparable<Money> {
     return result;
   }
 
+  /// 실제 환율로 원화 환산한 값. [usdToKrwRate] 는 "1달러 = 원화 얼마".
+  ///
+  /// [convertedTo] 와 다르다 — 그건 숫자는 그대로 두고 통화 표기만 바꾸는
+  /// 것이고, 이건 환율을 곱해 실제 가치를 옮긴다. 이미 원화면 그대로 둔다.
+  /// 이 앱이 실제로 받는 통화는 KRW·USD 뿐이라 USD 만 다룬다.
+  Money toKrw(double usdToKrwRate) {
+    if (currency == krw) return this;
+    if (currency != 'USD') return this;
+    return Money((major * usdToKrwRate).round(), currency: krw);
+  }
+
   Map<String, Object?> toJson() => {'minor': minor, 'currency': currency};
 
   factory Money.fromJson(Map<String, Object?> json) => Money(
