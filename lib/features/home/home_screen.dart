@@ -8,6 +8,7 @@ import '../../data/models/money.dart';
 import '../../data/models/subscription.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/subscription_providers.dart';
+import '../../widgets/krw_amount_text.dart';
 import '../../widgets/service_icon.dart';
 import '../add/service_picker_screen.dart';
 import '../detail/subscription_detail_screen.dart';
@@ -334,8 +335,8 @@ class _SubscriptionRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    subscription.currentPrice.format(),
+                  KrwAmountText(
+                    subscription.currentPrice,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),

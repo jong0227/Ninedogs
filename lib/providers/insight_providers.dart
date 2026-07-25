@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/money.dart';
 import '../data/models/subscription.dart';
+import 'app_providers.dart';
 import 'subscription_providers.dart';
 
 /// 눈여겨볼 만한 것 하나.
@@ -39,20 +40,43 @@ enum InsightKind {
 }
 
 /// 지금 알려줄 만한 것들. 급한 순서대로.
+///
+/// 문구에 나오는 금액은 전부 원화로 통일한다. 달러 구독이 하나만 섞여
+/// 있어도 합산·비교(중복·결제일 몰림)가 통화 때문에 틀어지면 안 된다.
 final insightsProvider = Provider<List<Insight>>((ref) {
   final all = ref.watch(allSubscriptionsProvider);
   final active = all.where((s) => s.isActive).toList();
+  final rate = ref.watch(exchangeRateProvider).value;
 
   return [
-    ..._trialEndings(active),
-    ..._duplicates(active),
-    ..._priceIncreases(active),
-    ..._crowdedBillingDays(active),
+    ..._trialEndings(active, rate),
+    ..._duplicates(active, rate),
+    ..._priceIncreases(active, rate),
+    ..._crowdedBillingDays(active, rate),
   ];
 });
 
+/// 한 건짜리 금액을 보여줄 때 쓴다. 원화면 그대로, 달러면 환율로 환산한다.
+/// 환율이 없으면 원래 통화 그대로 — 안 보이는 것보다 낫다.
+Money _display(Money money, double? usdToKrwRate) {
+  if (money.currency == Money.krw || usdToKrwRate == null) return money;
+  return money.toKrw(usdToKrwRate);
+}
+
+/// 여러 건을 더할 때 쓴다. [_display] 와 달리 변환할 수 없으면 null —
+/// 통화가 다른 Money 끼리 더하면 assert 로 죽으므로, 더하는 곳에서는
+/// 안전하게 건너뛸 수 있어야 한다.
+Money? _krwOrNull(Money money, double? usdToKrwRate) {
+  if (money.currency == Money.krw) return money;
+  if (usdToKrwRate == null) return null;
+  return money.toKrw(usdToKrwRate);
+}
+
 /// 무료 체험이 곧 끝나는 것. 놓치면 바로 돈이 나가므로 맨 위에 둔다.
-List<Insight> _trialEndings(List<Subscription> subscriptions) {
+List<Insight> _trialEndings(
+  List<Subscription> subscriptions,
+  double? usdToKrwRate,
+) {
   final result = <Insight>[];
 
   for (final subscription in subscriptions) {
@@ -65,8 +89,9 @@ List<Insight> _trialEndings(List<Subscription> subscriptions) {
         title: days == 0
             ? '${subscription.name} 무료 체험이 오늘 끝나요'
             : '${subscription.name} 무료 체험 $days일 남음',
-        body: '그때부터 ${subscription.currentPrice.format()} 결제돼요. '
-            '계속 안 쓸 거면 지금 해지하세요.',
+        body:
+            '그때부터 ${_display(subscription.currentPrice, usdToKrwRate).format()} '
+            '결제돼요. 계속 안 쓸 거면 지금 해지하세요.',
         subscriptionId: subscription.id,
       ),
     );
@@ -80,7 +105,10 @@ List<Insight> _trialEndings(List<Subscription> subscriptions) {
 /// 부부가 각자 넣어둔 걸 합치면 드러난다. 연결하기 전에는 알 수 없던 낭비라
 /// 이 앱에서만 찾아줄 수 있다. 0원짜리(번들 포함)는 실제로 돈이 안 나가므로
 /// 중복으로 세지 않는다.
-List<Insight> _duplicates(List<Subscription> subscriptions) {
+List<Insight> _duplicates(
+  List<Subscription> subscriptions,
+  double? usdToKrwRate,
+) {
   final byService = <String, List<Subscription>>{};
 
   for (final subscription in subscriptions) {
@@ -94,10 +122,17 @@ List<Insight> _duplicates(List<Subscription> subscriptions) {
   for (final group in byService.values) {
     if (group.length < 2) continue;
 
-    // 겹치는 것 중 싼 쪽을 남기면 그만큼 아낄 수 있다.
-    final costs = group.map((s) => s.monthlyCost).toList()
+    // 겹치는 것 중 싼 쪽을 남기면 그만큼 아낄 수 있다. 원화로 환산해서
+    // 비교해야 통화가 섞인 중복(한쪽은 원화, 한쪽은 달러)도 제대로 걸러진다.
+    // 환산할 수 없는 건(환율 없음) 더하지 않고 건너뛴다 — 통화가 다른
+    // Money 끼리 더하면 assert 로 죽는다.
+    final costs = group
+        .map((s) => _krwOrNull(s.monthlyCost, usdToKrwRate))
+        .whereType<Money>()
+        .toList()
       ..sort((a, b) => a.minor.compareTo(b.minor));
-    var wasted = Money.zero(costs.first.currency);
+    if (costs.length < 2) continue; // 환산 못 한 게 많아 비교가 안 되면 건너뛴다
+    var wasted = Money.zero();
     for (final cost in costs.skip(1)) {
       wasted += cost;
     }
@@ -120,7 +155,10 @@ List<Insight> _duplicates(List<Subscription> subscriptions) {
 ///
 /// 구독료 인상은 조용히 일어나서 아무도 모른다. 가격 이력을 이미 갖고 있으니
 /// 처음 낸 금액과 지금 금액을 견줘 알려준다.
-List<Insight> _priceIncreases(List<Subscription> subscriptions) {
+List<Insight> _priceIncreases(
+  List<Subscription> subscriptions,
+  double? usdToKrwRate,
+) {
   final result = <Insight>[];
 
   for (final subscription in subscriptions) {
@@ -137,7 +175,8 @@ List<Insight> _priceIncreases(List<Subscription> subscriptions) {
       Insight(
         kind: InsightKind.priceIncrease,
         title: '${subscription.name} 요금이 $percent% 올랐어요',
-        body: '${first.format()} → ${now.format()} '
+        body: '${_display(first, usdToKrwRate).format()} → '
+            '${_display(now, usdToKrwRate).format()} '
             '(${subscription.priceChanges.length}번 인상)',
         subscriptionId: subscription.id,
       ),
@@ -151,7 +190,10 @@ List<Insight> _priceIncreases(List<Subscription> subscriptions) {
 ///
 /// 같은 날 여러 건이 한꺼번에 빠져나가면 통장이 크게 흔들린다.
 /// 세 건 이상 겹칠 때만 알린다.
-List<Insight> _crowdedBillingDays(List<Subscription> subscriptions) {
+List<Insight> _crowdedBillingDays(
+  List<Subscription> subscriptions,
+  double? usdToKrwRate,
+) {
   final byDay = <int, List<Subscription>>{};
 
   for (final subscription in subscriptions) {
@@ -164,9 +206,13 @@ List<Insight> _crowdedBillingDays(List<Subscription> subscriptions) {
   byDay.forEach((day, group) {
     if (group.length < 3) return;
 
-    var total = Money.zero(group.first.currentPrice.currency);
+    var total = Money.zero();
     for (final subscription in group) {
-      total += subscription.currentPrice;
+      // 환산 못 하는 건(환율 없음) 더하지 않고 건너뛴다 — 통화가 다른
+      // Money 끼리 더하면 assert 로 죽는다. 총액이 그만큼 적게 보일 뿐,
+      // 항목 자체는 여전히 이 인사이트에 포함된다.
+      final converted = _krwOrNull(subscription.currentPrice, usdToKrwRate);
+      if (converted != null) total += converted;
     }
 
     result.add(

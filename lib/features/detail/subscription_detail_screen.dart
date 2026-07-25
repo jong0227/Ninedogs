@@ -8,23 +8,14 @@ import '../../core/theme/app_theme.dart';
 import '../../data/catalog/service_catalog.dart';
 import '../../data/models/money.dart';
 import '../../data/models/subscription.dart';
-import '../../providers/app_providers.dart';
 import '../../providers/subscription_providers.dart';
+import '../../widgets/krw_amount_text.dart';
 import '../../widgets/service_icon.dart';
 import '../edit/price_history_editor.dart';
 import '../edit/quick_edits.dart';
 import '../edit/subscription_form_screen.dart';
 import '../notifications/reminder_picker.dart';
 import '../vault/credential_section.dart';
-
-/// 달러 구독 옆에 붙이는 원화 환산 문구. 환율을 아직 못 받아왔으면
-/// 대략값이라도 있어야 하는데(ExchangeRateService 참고) 그래도 비동기라
-/// 첫 프레임엔 없을 수 있어 그 순간만 조용히 아무것도 안 보여준다.
-String _krwCaption(WidgetRef ref, Subscription subscription) {
-  final rate = ref.watch(exchangeRateProvider).value;
-  if (rate == null) return '';
-  return '약 ${subscription.currentPrice.toKrw(rate).format()}';
-}
 
 class SubscriptionDetailScreen extends ConsumerWidget {
   const SubscriptionDetailScreen({super.key, required this.subscriptionId});
@@ -42,9 +33,6 @@ class SubscriptionDetailScreen extends ConsumerWidget {
 
     final theme = Theme.of(context);
     final charges = subscription.billingDatesUntil(DateTime.now()).length;
-    final krwCaption = subscription.currency == Money.krw
-        ? ''
-        : _krwCaption(ref, subscription);
 
     return Scaffold(
       appBar: AppBar(
@@ -81,8 +69,10 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Flexible(
-                            child: Text(
-                              subscription.currentPrice.format(),
+                            // 달러로 결제해도 원화로 얼마인지가 크게 보인다.
+                            // 실제 청구 통화는 아래에 작게 따로 남긴다.
+                            child: KrwAmountText(
+                              subscription.currentPrice,
                               style: theme.textTheme.displaySmall,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -97,33 +87,36 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                       '${subscription.memo == null ? '' : ' · ${subscription.memo}'}',
                       style: theme.textTheme.labelMedium,
                     ),
+                    if (subscription.currency != Money.krw)
+                      Text(
+                        '실제 결제 ${subscription.currentPrice.format()}',
+                        style: theme.textTheme.labelMedium?.merge(
+                          AppTheme.numeric,
+                        ),
+                      ),
                     // 0원이면 왜 0원인지 알려준다. 그냥 ₩0 만 떠 있으면
                     // 잘못 입력된 줄 안다.
                     if (subscription.currentPrice.isZero)
                       _IncludedBadge(subscription: subscription),
-                    // 달러로 결제해도 감이 오도록 원화 환산을 같이 보여준다.
-                    // 환율을 아직 못 받아왔으면(앱을 막 켠 순간) 빈 문구라
-                    // 그 잠깐은 아무것도 안 보여준다.
-                    if (krwCaption.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          krwCaption,
-                          style: theme.textTheme.labelMedium?.merge(
-                            AppTheme.numeric,
-                          ),
-                        ),
-                      ),
                     // 월 7,900원은 싸 보이지만 1년이면 9만원이 넘는다.
                     // 연 환산을 보여주면 유지할지 판단이 달라진다.
                     if (!subscription.currentPrice.isZero)
                       Padding(
                         padding: const EdgeInsets.only(top: AppSpacing.xs),
-                        child: Text(
-                          '1년이면 ${(subscription.monthlyCost * 12).format()}',
-                          style: theme.textTheme.labelMedium?.merge(
-                            AppTheme.numeric,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '1년이면 ',
+                              style: theme.textTheme.labelMedium,
+                            ),
+                            KrwAmountText(
+                              subscription.monthlyCost * 12,
+                              style: theme.textTheme.labelMedium?.merge(
+                                AppTheme.numeric,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                   ],
@@ -147,8 +140,8 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                 children: [
                   Text('이 서비스에 쓴 돈', style: theme.textTheme.labelMedium),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    subscription.totalSpent.format(),
+                  KrwAmountText(
+                    subscription.totalSpent,
                     style: theme.textTheme.displaySmall?.copyWith(
                       color: AppColors.accent,
                     ),

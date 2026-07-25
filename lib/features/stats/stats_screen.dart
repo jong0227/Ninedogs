@@ -11,6 +11,7 @@ import '../../data/models/subscription.dart';
 import '../../providers/insight_providers.dart';
 import '../../providers/stats_providers.dart';
 import '../../providers/usage_providers.dart';
+import '../../widgets/krw_amount_text.dart';
 import '../../widgets/service_icon.dart';
 import '../detail/subscription_detail_screen.dart';
 
@@ -650,9 +651,8 @@ class _SubscriptionLine extends StatelessWidget {
                 ],
               ),
             ),
-            Text(
-              (lifetime ? subscription.totalSpent : subscription.monthlyCost)
-                  .format(),
+            KrwAmountText(
+              lifetime ? subscription.totalSpent : subscription.monthlyCost,
               style: theme.textTheme.bodyMedium?.merge(AppTheme.numeric),
             ),
           ],

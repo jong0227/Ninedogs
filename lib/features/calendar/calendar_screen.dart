@@ -8,8 +8,10 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/category_colors.dart';
 import '../../data/models/money.dart';
 import '../../data/models/subscription.dart';
+import '../../providers/app_providers.dart';
 import '../../providers/stats_providers.dart';
 import '../../providers/subscription_providers.dart';
+import '../../widgets/krw_amount_text.dart';
 import '../../widgets/service_icon.dart';
 import '../detail/subscription_detail_screen.dart';
 
@@ -56,7 +58,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final subscriptions = ref.watch(activeSubscriptionsProvider);
     final byDay = _billingByDay(subscriptions);
 
-    final monthTotal = _sumOf(byDay.values.expand((list) => list));
+    final rate = ref.watch(exchangeRateProvider).value;
+    final monthTotal = _sumOf(byDay.values.expand((list) => list), rate);
     final selectedDay = _selected?.day;
 
     return Scaffold(
@@ -75,7 +78,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             onPrevious: () => _shiftMonth(-1),
             onNext: () => _shiftMonth(1),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
           _MonthGrid(
             month: _month,
             byDay: byDay,
@@ -85,7 +88,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               _selected = _selected?.day == day ? null : tapped;
             }),
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
 
           if (selectedDay != null)
             _DayDetail(
@@ -99,12 +102,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  static Money _sumOf(Iterable<Subscription> subscriptions) {
+  /// 예전엔 통화가 섞이면 원화만 더해서, 달러 구독 하나가 있으면 이 달
+  /// 합계에서 그 결제 금액이 통째로 빠졌다. 환율로 환산해서 전부 더한다.
+  static Money _sumOf(Iterable<Subscription> subscriptions, double? rate) {
     var total = Money.zero();
     for (final subscription in subscriptions) {
-      // 통화가 섞이면 합계가 의미 없어지므로 원화만 더한다
-      if (subscription.currency != Money.krw) continue;
-      total += subscription.currentPrice;
+      final converted = subscription.currency == Money.krw
+          ? subscription.currentPrice
+          : (rate == null ? null : subscription.currentPrice.toKrw(rate));
+      if (converted != null) total += converted;
     }
     return total;
   }
@@ -204,13 +210,15 @@ class _MonthGrid extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xs),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 7,
-            childAspectRatio: 0.82,
+            // 예전엔 세로로 길쭉해서(0.82) 그리드 하나가 화면 절반을 먹었다.
+            // 요일 한 줄 + 결제일 점만 찍으면 되니 정사각형에 가깝게 줄인다.
+            childAspectRatio: 1.15,
           ),
           itemCount: leading + daysInMonth,
           itemBuilder: (context, index) {
@@ -259,8 +267,8 @@ class _DayCell extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: 26,
+            height: 26,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -284,11 +292,11 @@ class _DayCell extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           // 결제가 있는 날만 분야 색 점을 찍는다. 세 개까지만 보여주고
           // 더 있으면 마지막 점을 회색으로 둬서 더 있다는 걸 알린다.
           SizedBox(
-            height: 5,
+            height: 4,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -352,6 +360,10 @@ class _DayDetail extends StatelessWidget {
 }
 
 /// 아무 날짜도 고르지 않았을 때, 이 달 결제를 날짜순으로 쭉 보여준다.
+///
+/// 예전엔 날짜마다 "N일" 제목 줄을 따로 두고 그 아래 결제를 늘어놓아서,
+/// 구독이 많으면 줄 수가 배로 늘어 스크롤이 길어졌다. 날짜를 각 행 안에
+/// 작은 배지로 넣어 한 줄씩만 차지하게 했다.
 class _MonthList extends StatelessWidget {
   const _MonthList({required this.byDay, required this.month});
 
@@ -381,59 +393,74 @@ class _MonthList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('이 달 결제', style: theme.textTheme.headlineSmall),
-        const SizedBox(height: AppSpacing.md),
-        for (final day in days) ...[
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-            child: Text('$day일', style: theme.textTheme.labelMedium),
-          ),
+        const SizedBox(height: AppSpacing.sm),
+        for (final day in days)
           for (final subscription in byDay[day]!)
-            _BillingRow(subscription: subscription),
-          const SizedBox(height: AppSpacing.sm),
-        ],
+            _BillingRow(subscription: subscription, day: day),
       ],
     );
   }
 }
 
 class _BillingRow extends StatelessWidget {
-  const _BillingRow({required this.subscription});
+  const _BillingRow({required this.subscription, this.day});
 
   final Subscription subscription;
+
+  /// 날짜 배지로 보여줄 일(day). 이미 날짜 헤더가 있는 [_DayDetail] 에서는
+  /// 안 준다.
+  final int? day;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Material(
-      color: theme.colorScheme.surface,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: InkWell(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Material(
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) =>
-                SubscriptionDetailScreen(subscriptionId: subscription.id),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  SubscriptionDetailScreen(subscriptionId: subscription.id),
+            ),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            children: [
-              ServiceIcon.forSubscription(subscription, size: 36),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Text(
-                  subscription.name,
-                  style: theme.textTheme.titleMedium,
-                  overflow: TextOverflow.ellipsis,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                if (day != null) ...[
+                  SizedBox(
+                    width: 26,
+                    child: Text(
+                      '$day일',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.labelMedium,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
+                ServiceIcon.forSubscription(subscription, size: 32),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text(
+                    subscription.name,
+                    style: theme.textTheme.titleMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              Text(
-                subscription.currentPrice.format(),
-                style: theme.textTheme.titleMedium?.merge(AppTheme.numeric),
-              ),
-            ],
+                KrwAmountText(
+                  subscription.currentPrice,
+                  style: theme.textTheme.titleMedium?.merge(AppTheme.numeric),
+                ),
+              ],
+            ),
           ),
         ),
       ),
