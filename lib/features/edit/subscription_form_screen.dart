@@ -141,7 +141,10 @@ class _SubscriptionFormScreenState
 
   Future<void> _save() async {
     final price = _enteredPrice;
-    if (price == null || price.isZero) {
+    // 0원은 허용한다. 상위 상품(와우 멤버십 등)에 포함돼서 따로 결제가
+    // 없는 구독을 0원으로 등록할 수 있어야 한다. 막아야 하는 건 아예
+    // 입력하지 않은 경우(빈 문자열 -> tryParse 가 null)뿐이다.
+    if (price == null) {
       setState(() => _amountError = '금액을 입력해주세요');
       return;
     }
@@ -326,7 +329,12 @@ class _SubscriptionFormScreenState
                       _selectedPlan = plan;
                       _cycle = plan.cycle;
                       _currency = Money.krw;
-                      _amount.text = _formatAmountInput(plan.price);
+                      // 0원 요금제(번들 포함)를 고르면 '0'을 그대로 보여준다.
+                      // 빈칸으로 두면 아무것도 안 고른 것처럼 보여 헷갈린다.
+                      _amount.text = plan.price.isZero
+                          ? '0'
+                          : _formatAmountInput(plan.price);
+                      _amountError = null;
                       _memo.text = plan.name;
                     }),
                   ),

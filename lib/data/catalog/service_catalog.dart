@@ -65,12 +65,29 @@ abstract final class ServiceCatalog {
       searchTerm: '쿠팡플레이',
       category: ServiceCategory.video,
       brandColor: 0xFF00A4E4,
-      // 와우 멤버십 회원이면 추가 결제 없이 본다. 기본을 0원으로 두지 않으면
-      // 와우와 쿠팡플레이를 모두 등록했을 때 월 7,890원이 두 번 잡힌다.
       includedIn: 'coupang_wow',
+      // defaultPlan(=plans.first)은 실제 가격이어야 한다. 와우 멤버십이 없는
+      // 사람이 쿠팡플레이만 추가할 수도 있는데, 0원을 기본값으로 두면 그
+      // 사람의 진짜 결제 7,890원이 조용히 0원으로 기록된다. 와우를 이미
+      // 등록한 사람에게는 추가할 때(bundle_notice)나 온보딩에서 자동으로
+      // 0원 요금제를 골라주므로, 여기서는 apple_music/apple_tv 와 같은
+      // 순서(실가격 먼저, 포함 요금제 나중)를 따른다.
       plans: [
-        CatalogPlan('와우 멤버십에 포함 (추가 결제 없음)', 0),
         CatalogPlan('따로 결제', 7890),
+        CatalogPlan('와우 멤버십에 포함 (추가 결제 없음)', 0),
+      ],
+    ),
+    CatalogService(
+      id: 'coupang_sports_pass',
+      name: '쿠팡플레이 스포츠패스',
+      searchTerm: '쿠팡플레이 스포츠패스',
+      category: ServiceCategory.video,
+      brandColor: 0xFF00A4E4,
+      // 와우 멤버십에 포함되는 쿠팡플레이와 달리, 스포츠패스는 별도로 결제하는
+      // 추가 상품이다. 와우 회원 여부에 따라 가격이 다르다.
+      plans: [
+        CatalogPlan('와우 회원가', 12400),
+        CatalogPlan('일반 회원가', 19300),
       ],
     ),
     CatalogService(
@@ -88,6 +105,14 @@ abstract final class ServiceCatalog {
       category: ServiceCategory.video,
       brandColor: 0xFF6C3DF4,
       plans: [CatalogPlan('베이직', 9900)],
+    ),
+    CatalogService(
+      id: 'spotv_now',
+      name: '스포티비 나우',
+      searchTerm: 'SPOTV NOW 스포티비',
+      category: ServiceCategory.video,
+      brandColor: 0xFFE4032E,
+      plans: [CatalogPlan('베이직', 9900), CatalogPlan('프리미엄', 19900)],
     ),
     CatalogService(
       id: 'apple_tv',
@@ -310,6 +335,19 @@ abstract final class ServiceCatalog {
       brandColor: 0xFF0061FF,
       plans: [CatalogPlan('Plus', 15000)],
     ),
+    CatalogService(
+      id: 'kakao_talk_cloud',
+      name: '톡클라우드',
+      searchTerm: '카카오톡 서랍 톡클라우드',
+      category: ServiceCategory.cloud,
+      brandColor: 0xFFFEE500,
+      plans: [
+        CatalogPlan('30GB', 2100),
+        CatalogPlan('50GB', 3100),
+        CatalogPlan('200GB', 5100),
+        CatalogPlan('2TB', 12000),
+      ],
+    ),
 
     // ── 독서·콘텐츠 ───────────────────────────────────────
     CatalogService(
@@ -338,6 +376,30 @@ abstract final class ServiceCatalog {
       category: ServiceCategory.reading,
       brandColor: 0xFFFF5A3D,
       plans: [CatalogPlan('오디오북 무제한', 9900)],
+    ),
+    CatalogService(
+      id: 'hankyung_plus',
+      name: '한경플러스',
+      searchTerm: '한국경제 모바일한경',
+      category: ServiceCategory.reading,
+      brandColor: 0xFF003478,
+      plans: [CatalogPlan('디지털 구독', 15000)],
+    ),
+    CatalogService(
+      id: 'maekyung',
+      name: '매일경제',
+      searchTerm: '매경e신문 매일경제',
+      category: ServiceCategory.reading,
+      brandColor: 0xFF00468C,
+      plans: [CatalogPlan('디지털 구독', 9900)],
+    ),
+    CatalogService(
+      id: 'chosun_membership',
+      name: '조선멤버십',
+      searchTerm: '조선일보 조선멤버십',
+      category: ServiceCategory.reading,
+      brandColor: 0xFF0A2E5C,
+      plans: [CatalogPlan('디지털 구독', 7000)],
     ),
 
     // ── 게임 ─────────────────────────────────────────────
@@ -581,10 +643,14 @@ abstract final class ServiceCatalog {
     'tving': 'net.cj.cjhv.gs.tving',
     'wavve': 'kr.co.captv.pooqV2', // 웨이브 (옛 POOQ 패키지를 그대로 쓴다)
     'coupang_play': 'com.coupang.mobile.play',
+    // 스포츠패스는 쿠팡플레이 앱 안의 기능이라 같은 패키지를 쓴다.
+    'coupang_sports_pass': 'com.coupang.mobile.play',
     // 왓챠(스트리밍)는 wplay 다. com.frograms.watcha 는 앱 이름이
     // 'WATCHA PEDIA' 인 평점·리뷰 앱이라 구독과 상관없다. 같은 회사라 헷갈린다.
     'watcha': 'com.frograms.wplay',
     'laftel': 'laftel.net.laftel',
+    // Google Play 주소(details?id=)로 확인.
+    'spotv_now': 'kr.co.spotvnow.app',
     // apple_tv 는 뺐다. com.apple.atve.androidtv.appletv 는 안드로이드 TV
     // 전용이라 폰에는 깔리지 않는다. 폰용 패키지명을 확인하지 못해, 틀린 값을
     // 두느니 아예 조회하지 않는 쪽을 골랐다.
@@ -604,6 +670,10 @@ abstract final class ServiceCatalog {
     'claude': 'com.anthropic.claude',
     'perplexity': 'ai.perplexity.app.android',
     'notion': 'notion.id',
+    // Google Play 주소(details?id=)로 확인.
+    'hankyung_plus': 'com.hankyung.plus', // '모바일한경' 앱. 무료 '한국경제'(com.hankyung)와 다르다.
+    'maekyung': 'com.mk.news',
+    'chosun_membership': 'com.chosunmedia.android',
   };
 
   /// 사용 기록을 볼 수 있는 서비스인지. 없으면 null.
@@ -621,8 +691,10 @@ abstract final class ServiceCatalog {
     'tving': 'tving.com',
     'wavve': 'wavve.com',
     'coupang_play': 'coupangplay.com',
+    'coupang_sports_pass': 'coupangplay.com',
     'watcha': 'watcha.com',
     'laftel': 'laftel.net',
+    'spotv_now': 'spotvnow.co.kr',
     'apple_tv': 'tv.apple.com',
     'amazon_prime': 'primevideo.com',
     'spotify': 'spotify.com',
@@ -641,6 +713,9 @@ abstract final class ServiceCatalog {
     'claude': 'claude.ai',
     'perplexity': 'perplexity.ai',
     'notion': 'notion.so',
+    'hankyung_plus': 'hankyung.com',
+    'maekyung': 'mk.co.kr',
+    'chosun_membership': 'chosun.com',
     'github_copilot': 'github.com',
     'figma': 'figma.com',
     'adobe_cc': 'adobe.com',
@@ -655,6 +730,7 @@ abstract final class ServiceCatalog {
     'icloud': 'icloud.com',
     'google_one': 'one.google.com',
     'dropbox': 'dropbox.com',
+    'kakao_talk_cloud': 'kakao.com',
     'millie': 'millie.co.kr',
     'ridi_select': 'ridibooks.com',
     'welaaa': 'welaaa.com',
