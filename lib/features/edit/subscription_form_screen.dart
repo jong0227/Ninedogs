@@ -12,16 +12,9 @@ import '../../data/models/billing_cycle.dart';
 import '../../data/models/money.dart';
 import '../../data/models/subscription.dart';
 import '../../providers/subscription_providers.dart';
+import '../../widgets/app_date_picker.dart';
 import '../../widgets/service_icon.dart';
-
-/// 금액이 바뀌었을 때 그 의미.
-enum _PriceEditKind {
-  /// 실제로 요금이 바뀜 -> 이력에 새 항목을 남기고 그 전 결제는 옛 금액으로 둔다.
-  changed,
-
-  /// 처음부터 잘못 적음 -> 마지막 항목을 고쳐서 누적 지출을 다시 계산한다.
-  correction,
-}
+import 'quick_edits.dart';
 
 /// 구독 추가·편집 화면. 두 경우가 입력 항목이 같아서 한 화면으로 쓴다.
 class SubscriptionFormScreen extends ConsumerStatefulWidget {
@@ -30,6 +23,7 @@ class SubscriptionFormScreen extends ConsumerStatefulWidget {
     this.service,
     this.customName,
     this.existing,
+    this.initialPlan,
   });
 
   /// 카탈로그에서 고른 서비스. 직접 입력이면 null.
@@ -40,6 +34,12 @@ class SubscriptionFormScreen extends ConsumerStatefulWidget {
 
   /// 편집 중인 구독. 새로 추가하는 경우 null.
   final Subscription? existing;
+
+  /// 기본 요금제 대신 미리 골라둘 요금제.
+  ///
+  /// 상위 상품(와우 멤버십 등)을 이미 등록한 사람에게 0원 '포함' 요금제를
+  /// 골라준 채로 화면을 열 때 쓴다.
+  final CatalogPlan? initialPlan;
 
   bool get isEditing => existing != null;
 
@@ -59,6 +59,7 @@ class _SubscriptionFormScreenState
   late BillingCycle _cycle;
   late DateTime _startedAt;
   DateTime? _billingAnchor;
+  DateTime? _trialEndsAt;
 
   CatalogPlan? _selectedPlan;
   String? _amountError;
@@ -76,7 +77,7 @@ class _SubscriptionFormScreenState
     super.initState();
     final existing = widget.existing;
     final service = _catalog;
-    final plan = service?.defaultPlan;
+    final plan = widget.initialPlan ?? service?.defaultPlan;
 
     _selectedPlan = existing == null ? plan : _matchPlan(service, existing);
 
@@ -96,6 +97,7 @@ class _SubscriptionFormScreenState
     _cycle = existing?.cycle ?? plan?.cycle ?? BillingCycle.monthly;
     _startedAt = existing?.startedAt ?? DateTime.now();
     _billingAnchor = existing?.billingAnchor;
+    _trialEndsAt = existing?.trialEndsAt;
   }
 
   @override
@@ -166,6 +168,7 @@ class _SubscriptionFormScreenState
       cycle: _cycle,
       startedAt: _startedAt,
       billingAnchor: _billingAnchor,
+      trialEndsAt: _trialEndsAt,
       priceHistory: [PricePoint(effectiveFrom: _startedAt, amount: price)],
       paymentMethod: _nullIfBlank(_paymentMethod.text),
       memo: _nullIfBlank(_memo.text),
@@ -178,10 +181,14 @@ class _SubscriptionFormScreenState
     var history = existing.priceHistory;
 
     if (price != existing.currentPrice) {
-      final kind = await _askPriceEditKind(existing.currentPrice, price);
+      final kind = await askPriceEditKind(
+        context,
+        before: existing.currentPrice,
+        next: price,
+      );
       if (kind == null) return; // 사용자가 취소함
 
-      if (kind == _PriceEditKind.changed) {
+      if (kind == PriceEditKind.changed) {
         final effectiveFrom = await _pickEffectiveDate();
         if (effectiveFrom == null) return;
         history = [
@@ -208,6 +215,7 @@ class _SubscriptionFormScreenState
       cycle: _cycle,
       startedAt: _startedAt,
       billingAnchor: _billingAnchor,
+      trialEndsAt: _trialEndsAt,
       priceHistory: history,
       canceledAt: existing.canceledAt,
       accessEndsAt: existing.accessEndsAt,
@@ -219,38 +227,8 @@ class _SubscriptionFormScreenState
     await ref.read(subscriptionsProvider.notifier).replace(updated);
   }
 
-  /// 금액이 달라졌을 때, 실제 인상인지 오타 정정인지 물어본다.
-  /// 이 구분에 따라 누적 지출 계산이 달라지므로 그냥 덮어쓰지 않는다.
-  Future<_PriceEditKind?> _askPriceEditKind(Money before, Money after) {
-    final increased = after.minor > before.minor;
-
-    return showDialog<_PriceEditKind>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('금액이 ${before.format()} → ${after.format()} 으로 달라졌어요'),
-        content: const Text('지금까지의 누적 지출을 어떻게 계산할까요?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, _PriceEditKind.correction),
-            child: const Text('처음부터 잘못 적었어요'),
-          ),
-          TextButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, _PriceEditKind.changed),
-            child: Text(increased ? '요금이 올랐어요' : '요금이 내렸어요'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<DateTime?> _pickEffectiveDate() => showDatePicker(
-    context: context,
+  Future<DateTime?> _pickEffectiveDate() => pickDate(
+    context,
     initialDate: DateTime.now(),
     firstDate: _startedAt,
     lastDate: DateTime.now(),
@@ -261,12 +239,13 @@ class _SubscriptionFormScreenState
     required DateTime initial,
     required String helpText,
     required ValueChanged<DateTime> onPicked,
+    DateTime? last,
   }) async {
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await pickDate(
+      context,
       initialDate: initial,
       firstDate: DateTime(2010),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      lastDate: last ?? DateTime.now().add(const Duration(days: 365)),
       helpText: helpText,
     );
     if (picked != null) setState(() => onPicked(picked));
@@ -409,6 +388,46 @@ class _SubscriptionFormScreenState
               onPicked: (date) => _startedAt = date,
             ),
           ),
+          const SizedBox(height: AppSpacing.lg),
+
+          // 무료 체험 중이면 그 기간엔 돈이 나가지 않는다. 체험 종료일이
+          // 곧 첫 결제일이라 누적 지출 계산의 기준이 된다.
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('무료 체험 중이에요'),
+            subtitle: Text(
+              _trialEndsAt == null
+                  ? '체험이 끝나는 날부터 결제된 것으로 계산해요'
+                  : '${formatDate(_trialEndsAt!)}에 첫 결제 · 그전까지는 0원',
+              style: theme.textTheme.labelMedium,
+            ),
+            value: _trialEndsAt != null,
+            activeThumbColor: AppColors.accent,
+            onChanged: (on) {
+              if (!on) {
+                setState(() => _trialEndsAt = null);
+              } else {
+                _pickDate(
+                  initial: DateTime.now().add(const Duration(days: 7)),
+                  helpText: '무료 체험이 끝나는 날',
+                  // 체험 종료일은 앞으로의 날짜다. 기본 상한(오늘)으로는 고를 수 없다.
+                  last: DateTime.now().add(const Duration(days: 365 * 2)),
+                  onPicked: (date) => _trialEndsAt = date,
+                );
+              }
+            },
+          ),
+          if (_trialEndsAt != null)
+            _DateRow(
+              value: formatDate(_trialEndsAt!),
+              hint: '무료 체험 종료 · 이날 첫 결제',
+              onTap: () => _pickDate(
+                initial: _trialEndsAt!,
+                helpText: '무료 체험이 끝나는 날',
+                last: DateTime.now().add(const Duration(days: 365 * 2)),
+                onPicked: (date) => _trialEndsAt = date,
+              ),
+            ),
           const SizedBox(height: AppSpacing.lg),
 
           SwitchListTile(

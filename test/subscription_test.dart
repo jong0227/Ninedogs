@@ -8,6 +8,7 @@ Subscription build({
   required List<PricePoint> prices,
   BillingCycle cycle = BillingCycle.monthly,
   DateTime? canceledAt,
+  DateTime? trialEndsAt,
 }) {
   return Subscription(
     id: 'test',
@@ -16,6 +17,7 @@ Subscription build({
     startedAt: startedAt,
     priceHistory: prices,
     canceledAt: canceledAt,
+    trialEndsAt: trialEndsAt,
   );
 }
 
@@ -317,5 +319,110 @@ void main() {
     expect(restored.currentPrice, original.currentPrice);
     expect(restored.paymentMethod, original.paymentMethod);
     expect(restored.brandColorValue, original.brandColorValue);
+  });
+
+  group('무료 체험', () {
+    // 체험 기간에는 돈이 나가지 않는다. 시작일을 청구 기준으로 삼으면
+    // 체험 중에도 결제한 것으로 잡혀 누적 지출이 부풀려진다.
+    final prices = [
+      PricePoint(
+        effectiveFrom: DateTime(2020, 1, 1),
+        amount: const Money(13500),
+      ),
+    ];
+
+    test('체험 중에는 누적 지출이 0원이다', () {
+      final subscription = build(
+        startedAt: DateTime(2026, 7, 1),
+        trialEndsAt: DateTime(2026, 8, 1),
+        prices: prices,
+      );
+
+      expect(
+        subscription.totalSpentUntil(DateTime(2026, 7, 20)),
+        Money.zero(),
+      );
+    });
+
+    test('첫 결제는 체험이 끝나는 날에 일어난다', () {
+      final subscription = build(
+        startedAt: DateTime(2026, 7, 1),
+        trialEndsAt: DateTime(2026, 8, 1),
+        prices: prices,
+      );
+
+      expect(
+        subscription.billingDatesUntil(DateTime(2026, 8, 1)),
+        [DateTime(2026, 8, 1)],
+      );
+      expect(
+        subscription.totalSpentUntil(DateTime(2026, 8, 1)),
+        const Money(13500),
+      );
+    });
+
+    test('체험이 끝난 뒤에는 그 날부터 주기가 돈다', () {
+      final subscription = build(
+        startedAt: DateTime(2026, 7, 10),
+        trialEndsAt: DateTime(2026, 8, 10),
+        prices: prices,
+      );
+
+      // 8/10, 9/10, 10/10 세 번
+      expect(
+        subscription.totalSpentUntil(DateTime(2026, 10, 15)),
+        const Money(13500 * 3),
+      );
+    });
+
+    test('체험 없이 등록하면 시작일부터 청구된다', () {
+      final subscription = build(
+        startedAt: DateTime(2026, 7, 1),
+        prices: prices,
+      );
+
+      expect(
+        subscription.totalSpentUntil(DateTime(2026, 7, 20)),
+        const Money(13500),
+      );
+    });
+
+    test('직접 지정한 결제일이 체험 종료일보다 우선한다', () {
+      final subscription = Subscription(
+        id: 'test',
+        name: '넷플릭스',
+        cycle: BillingCycle.monthly,
+        startedAt: DateTime(2026, 7, 1),
+        trialEndsAt: DateTime(2026, 8, 1),
+        billingAnchor: DateTime(2026, 8, 15),
+        priceHistory: prices,
+      );
+
+      expect(
+        subscription.billingDatesUntil(DateTime(2026, 8, 20)),
+        [DateTime(2026, 8, 15)],
+      );
+    });
+
+    test('JSON 으로 왕복해도 체험 종료일이 남는다', () {
+      final original = build(
+        startedAt: DateTime(2026, 7, 1),
+        trialEndsAt: DateTime(2026, 8, 1),
+        prices: prices,
+      );
+
+      final restored = Subscription.fromJson(original.toJson());
+      expect(restored.trialEndsAt, DateTime(2026, 8, 1));
+    });
+
+    test('clearTrial 로 체험 정보를 지울 수 있다', () {
+      final subscription = build(
+        startedAt: DateTime(2026, 7, 1),
+        trialEndsAt: DateTime(2026, 8, 1),
+        prices: prices,
+      );
+
+      expect(subscription.copyWith(clearTrial: true).trialEndsAt, isNull);
+    });
   });
 }

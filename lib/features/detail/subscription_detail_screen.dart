@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/format/formatters.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_theme.dart';
+import '../../data/catalog/service_catalog.dart';
 import '../../data/models/subscription.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/service_icon.dart';
@@ -80,11 +82,32 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                       '${subscription.memo == null ? '' : ' · ${subscription.memo}'}',
                       style: theme.textTheme.labelMedium,
                     ),
+                    // 0원이면 왜 0원인지 알려준다. 그냥 ₩0 만 떠 있으면
+                    // 잘못 입력된 줄 안다.
+                    if (subscription.currentPrice.isZero)
+                      _IncludedBadge(subscription: subscription),
+                    // 월 7,900원은 싸 보이지만 1년이면 9만원이 넘는다.
+                    // 연 환산을 보여주면 유지할지 판단이 달라진다.
+                    if (!subscription.currentPrice.isZero)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
+                        child: Text(
+                          '1년이면 ${(subscription.monthlyCost * 12).format()}',
+                          style: theme.textTheme.labelMedium?.merge(
+                            AppTheme.numeric,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
             ],
           ),
+          // 무료 체험은 놓치면 바로 돈이 나간다. 가장 먼저 눈에 띄어야 한다.
+          if (subscription.isInTrial) ...[
+            const SizedBox(height: AppSpacing.lg),
+            _TrialBanner(subscription: subscription),
+          ],
           const SizedBox(height: AppSpacing.xl),
 
           // 누적 지출 — 이 앱의 핵심 숫자
@@ -255,6 +278,104 @@ class SubscriptionDetailScreen extends ConsumerWidget {
       ),
     );
     return result ?? false;
+  }
+}
+
+/// 무료 체험이 언제 끝나고 그때 얼마가 빠져나가는지 알리는 띠.
+class _TrialBanner extends StatelessWidget {
+  const _TrialBanner({required this.subscription});
+
+  final Subscription subscription;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final days = subscription.daysUntilTrialEnds ?? 0;
+    final end = subscription.trialEndsAt!;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.timer_outlined, size: 20, color: AppColors.accent),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  days == 0 ? '오늘 무료 체험이 끝나요' : '무료 체험 $days일 남음',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.accent,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${formatDate(end)}부터 ${subscription.currentPrice.format()} 결제돼요',
+                  style: theme.textTheme.labelMedium,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 0원으로 등록된 구독에 "어디에 포함되는지" 알려주는 배지.
+///
+/// 카탈로그에 상위 상품이 적혀 있으면 그 이름을 쓰고, 없으면 일반 문구로 둔다.
+/// (직접 추가한 서비스도 0원으로 넣을 수 있다)
+class _IncludedBadge extends StatelessWidget {
+  const _IncludedBadge({required this.subscription});
+
+  final Subscription subscription;
+
+  @override
+  Widget build(BuildContext context) {
+    final service = ServiceCatalog.byId(subscription.serviceId ?? '');
+    final parent = service == null ? null : ServiceCatalog.parentOf(service);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: 3,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.accent.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.card_giftcard_outlined,
+              size: 12,
+              color: AppColors.accent,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              parent == null ? '추가 결제 없음' : '${parent.name}에 포함',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.accent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

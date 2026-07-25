@@ -106,6 +106,10 @@ class NotificationService {
     for (final subscription in subscriptions) {
       if (!subscription.isActive) continue;
 
+      // 무료 체험은 놓치면 바로 돈이 빠져나간다. 일반 결제 알림과 달리
+      // 설정과 상관없이 하루 전에 한 번 더 확실히 알린다.
+      await _scheduleTrialEnd(subscription, current);
+
       final billingDate = subscription.nextBillingDate(current);
       if (billingDate == null) continue;
 
@@ -122,6 +126,43 @@ class NotificationService {
 
         await _schedule(subscription, daysBefore, when);
       }
+    }
+  }
+
+  /// 무료 체험이 끝나기 전에 알린다.
+  ///
+  /// 체험이 끝나면 그 날 바로 첫 결제가 일어난다. 까먹고 넘어가면 원하지도
+  /// 않는 구독료가 나가므로 **3일 전과 하루 전** 두 번 건다.
+  Future<void> _scheduleTrialEnd(
+    Subscription subscription,
+    DateTime current,
+  ) async {
+    final end = subscription.trialEndsAt;
+    if (end == null || !subscription.isInTrial) return;
+
+    for (final daysBefore in _trialReminderDays) {
+      final when = DateTime(end.year, end.month, end.day - daysBefore, _hour);
+      if (!when.isAfter(current)) continue;
+
+      final amount = subscription.currentPrice.format();
+      await _plugin.zonedSchedule(
+        id: _trialIdFor(subscription.id, daysBefore),
+        title: '${subscription.name} 무료 체험이 곧 끝나요',
+        body: daysBefore == 1
+            ? '내일부터 $amount 결제돼요. 계속 안 쓸 거면 오늘 해지하세요'
+            : '$daysBefore일 뒤부터 $amount 결제돼요',
+        scheduledDate: tz.TZDateTime.from(when, tz.local),
+        notificationDetails: NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channel.id,
+            _channel.name,
+            channelDescription: _channel.description,
+            category: AndroidNotificationCategory.reminder,
+          ),
+          iOS: const DarwinNotificationDetails(),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
     }
   }
 
@@ -160,10 +201,20 @@ class NotificationService {
     await _plugin.cancelAll();
   }
 
+  /// 무료 체험 종료를 알릴 시점들.
+  static const _trialReminderDays = [3, 1];
+
   /// 구독 id 와 며칠 전인지로 예약 번호를 만든다.
   /// 같은 구독의 7일 전과 1일 전이 서로 덮어쓰지 않아야 한다.
   static int _idFor(String subscriptionId, int daysBefore) {
     final base = subscriptionId.hashCode & 0x00FFFFFF;
     return base * 10 + daysBefore % 10;
   }
+
+  /// 체험 종료 알림용 예약 번호.
+  ///
+  /// 결제 알림([_idFor])과 겹치면 서로 덮어쓴다. 앞자리를 음수로 갈라
+  /// 같은 구독의 '3일 전 결제'와 '3일 전 체험 종료'가 공존하게 한다.
+  static int _trialIdFor(String subscriptionId, int daysBefore) =>
+      -_idFor(subscriptionId, daysBefore);
 }

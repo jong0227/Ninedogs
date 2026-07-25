@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- 앱 아이콘을 App Store 검색 API에서 받아오는 데 필요 -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
@@ -12,6 +13,12 @@
 
     <!-- 앱 내 업데이트: 내려받은 APK 를 설치기로 넘기기 위해 -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
+    <!-- 안 쓰는 구독 찾기(선택 기능). 일반 권한 창으로는 못 받고 사용자가
+         설정 > 특별한 앱 접근 > 사용 정보 접근 에서 직접 켜야 한다.
+         기본은 꺼져 있고, 켜지 않아도 앱은 그대로 동작한다. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions"/>
 
     <application
         android:label="Ninedogs"
@@ -96,6 +103,11 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- 안 쓰는 구독 찾기: 구독 서비스 앱의 사용 기록을 조회하려면
+             Android 11+ 에서는 조회 대상을 미리 밝혀야 한다. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
         </intent>
     </queries>
 </manifest>

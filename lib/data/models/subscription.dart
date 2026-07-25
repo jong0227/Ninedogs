@@ -32,6 +32,7 @@ class Subscription {
     this.billingAnchor,
     this.canceledAt,
     this.accessEndsAt,
+    this.trialEndsAt,
     this.paymentMethod,
     this.credentialId,
     this.memo,
@@ -69,6 +70,12 @@ class Subscription {
   /// 해지 후에도 이용 가능한 마지막 날.
   final DateTime? accessEndsAt;
 
+  /// 무료 체험이 끝나는 날. 곧 **첫 결제일**이다.
+  ///
+  /// 체험 기간에는 돈이 나가지 않으므로 이 날짜가 청구 기준일이 된다
+  /// ([_anchor] 참고). 무료 체험 없이 바로 결제하면 null.
+  final DateTime? trialEndsAt;
+
   /// 결제 수단 메모. 예: "신한카드 1234"
   final String? paymentMethod;
 
@@ -92,7 +99,28 @@ class Subscription {
   bool get isActive => canceledAt == null;
 
   /// 청구 주기의 기준일.
-  DateTime get _anchor => billingAnchor ?? startedAt;
+  ///
+  /// 무료 체험이 있으면 체험이 끝나는 날이 첫 결제일이다. 시작일을 기준으로
+  /// 삼으면 체험 기간에도 돈이 나간 것으로 계산돼 누적 지출이 부풀려진다.
+  /// 사용자가 실제 결제일을 직접 지정했다면 그게 가장 정확하므로 먼저 본다.
+  DateTime get _anchor => billingAnchor ?? trialEndsAt ?? startedAt;
+
+  /// 아직 무료 체험 중인지.
+  bool get isInTrial {
+    final end = trialEndsAt;
+    if (end == null || !isActive) return false;
+    return !_dateOnly(DateTime.now()).isAfter(_dateOnly(end));
+  }
+
+  /// 무료 체험이 끝나기까지 남은 일수. 체험 중이 아니면 null.
+  int? get daysUntilTrialEnds {
+    final end = trialEndsAt;
+    if (end == null || !isInTrial) return null;
+    return _dateOnly(end).difference(_dateOnly(DateTime.now())).inDays;
+  }
+
+  static DateTime _dateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
 
   /// 현재 구독료.
   Money get currentPrice => priceAt(DateTime.now());
@@ -209,11 +237,15 @@ class Subscription {
     DateTime? billingAnchor,
     DateTime? canceledAt,
     DateTime? accessEndsAt,
+    DateTime? trialEndsAt,
     String? paymentMethod,
     String? credentialId,
     String? memo,
     List<int>? reminderDaysBefore,
     bool clearCanceledAt = false,
+
+    /// 무료 체험 정보를 지운다. (체험이 끝났거나 잘못 넣은 경우)
+    bool clearTrial = false,
 
     /// 이 구독만의 알림 설정을 지우고 전체 설정을 따르게 한다.
     bool clearReminders = false,
@@ -230,6 +262,7 @@ class Subscription {
       billingAnchor: billingAnchor ?? this.billingAnchor,
       canceledAt: clearCanceledAt ? null : (canceledAt ?? this.canceledAt),
       accessEndsAt: accessEndsAt ?? this.accessEndsAt,
+      trialEndsAt: clearTrial ? null : (trialEndsAt ?? this.trialEndsAt),
       paymentMethod: paymentMethod ?? this.paymentMethod,
       credentialId: credentialId ?? this.credentialId,
       memo: memo ?? this.memo,
@@ -251,6 +284,7 @@ class Subscription {
     'billingAnchor': billingAnchor?.toIso8601String(),
     'canceledAt': canceledAt?.toIso8601String(),
     'accessEndsAt': accessEndsAt?.toIso8601String(),
+    'trialEndsAt': trialEndsAt?.toIso8601String(),
     'paymentMethod': paymentMethod,
     'credentialId': credentialId,
     'memo': memo,
@@ -271,6 +305,7 @@ class Subscription {
     billingAnchor: _parseOrNull(json['billingAnchor']),
     canceledAt: _parseOrNull(json['canceledAt']),
     accessEndsAt: _parseOrNull(json['accessEndsAt']),
+    trialEndsAt: _parseOrNull(json['trialEndsAt']),
     paymentMethod: json['paymentMethod'] as String?,
     credentialId: json['credentialId'] as String?,
     memo: json['memo'] as String?,

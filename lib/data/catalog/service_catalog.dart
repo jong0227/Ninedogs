@@ -65,7 +65,13 @@ abstract final class ServiceCatalog {
       searchTerm: '쿠팡플레이',
       category: ServiceCategory.video,
       brandColor: 0xFF00A4E4,
-      plans: [CatalogPlan('와우 회원 포함', 7890)],
+      // 와우 멤버십 회원이면 추가 결제 없이 본다. 기본을 0원으로 두지 않으면
+      // 와우와 쿠팡플레이를 모두 등록했을 때 월 7,890원이 두 번 잡힌다.
+      includedIn: 'coupang_wow',
+      plans: [
+        CatalogPlan('와우 멤버십에 포함 (추가 결제 없음)', 0),
+        CatalogPlan('따로 결제', 7890),
+      ],
     ),
     CatalogService(
       id: 'watcha',
@@ -89,7 +95,11 @@ abstract final class ServiceCatalog {
       searchTerm: 'Apple TV',
       category: ServiceCategory.video,
       brandColor: 0xFF1B1B1B,
-      plans: [CatalogPlan('개인', 6500)],
+      includedIn: 'apple_one',
+      plans: [
+        CatalogPlan('개인', 6500),
+        CatalogPlan('Apple One에 포함 (추가 결제 없음)', 0),
+      ],
     ),
 
     // ── 음악 ─────────────────────────────────────────────
@@ -119,7 +129,14 @@ abstract final class ServiceCatalog {
       searchTerm: 'Apple Music',
       category: ServiceCategory.music,
       brandColor: 0xFFFA243C,
-      plans: [CatalogPlan('개인', 8900), CatalogPlan('가족', 13500)],
+      // 단독 가입이 흔해서 기본은 '개인'으로 두고, Apple One 을 이미 등록한
+      // 사람에게만 0원 요금제를 권한다.
+      includedIn: 'apple_one',
+      plans: [
+        CatalogPlan('개인', 8900),
+        CatalogPlan('가족', 13500),
+        CatalogPlan('Apple One에 포함 (추가 결제 없음)', 0),
+      ],
     ),
     CatalogService(
       id: 'genie',
@@ -536,6 +553,45 @@ abstract final class ServiceCatalog {
     ),
   ];
 
+  /// 서비스별 안드로이드 패키지명.
+  ///
+  /// "안 쓰는 구독 찾기"에서 폰 사용 기록을 볼 때 쓴다.
+  /// **앱으로 쓰는 것이 곧 이용인 서비스만** 넣는다. 쇼핑 멤버십(쿠팡 와우,
+  /// 네이버플러스)이나 주로 PC 로 쓰는 것(Adobe, Figma)은 앱을 안 열어도
+  /// 잘 쓰고 있는 경우가 많아 일부러 뺐다. 여기 없는 서비스는 사용 기록을
+  /// 아예 보지 않는다.
+  static const androidPackages = <String, String>{
+    'netflix': 'com.netflix.mediaclient',
+    'youtube_premium': 'com.google.android.youtube',
+    'disney_plus': 'com.disney.disneyplus',
+    'tving': 'net.cj.cjhv.gs.tving',
+    'wavve': 'kr.co.captv.pooqV2', // 웨이브 (옛 POOQ 패키지를 그대로 쓴다)
+    'coupang_play': 'com.coupang.mobile.play',
+    'watcha': 'com.frograms.wplay',
+    'laftel': 'net.laftel',
+    'apple_tv': 'com.apple.atve.androidtv.appletv',
+    'amazon_prime': 'com.amazon.avod.thirdpartyclient',
+    'spotify': 'com.spotify.music',
+    'melon': 'com.iloen.melon',
+    'apple_music': 'com.apple.android.music',
+    'genie': 'com.ktmusic.geniemusic',
+    'flo': 'skplanet.musicmate',
+    'vibe': 'com.naver.vibe',
+    'millie': 'com.millie.selfdev',
+    'ridibooks': 'com.initialcoms.ridi',
+    'yes24_ebook': 'com.yes24.ebook.fourth',
+    'kakaopage': 'com.kakao.page',
+    'naver_webtoon': 'com.nhn.android.webtoon',
+    'chatgpt': 'com.openai.chatgpt',
+    'claude': 'com.anthropic.claude',
+    'perplexity': 'ai.perplexity.app.android',
+    'notion': 'notion.id',
+  };
+
+  /// 사용 기록을 볼 수 있는 서비스인지. 없으면 null.
+  static String? packageOf(String? serviceId) =>
+      serviceId == null ? null : androidPackages[serviceId];
+
   /// 서비스별 대표 도메인.
   ///
   /// App Store 검색이 실패했을 때 파비콘으로 로고를 가져오는 데 쓴다.
@@ -609,6 +665,23 @@ abstract final class ServiceCatalog {
   };
 
   static CatalogService? byId(String id) => _byId[id];
+
+  /// [service] 를 혜택으로 끼워주는 상위 상품. 묶여 있지 않으면 null.
+  static CatalogService? parentOf(CatalogService service) {
+    final parentId = service.includedIn;
+    return parentId == null ? null : byId(parentId);
+  }
+
+  /// 상위 상품에 포함될 때 고르는 0원 요금제. 없으면 null.
+  ///
+  /// 상위 상품을 이미 등록한 사람에게 이 요금제를 권해서, 실제로 내지 않는
+  /// 돈이 합계에 잡히지 않게 한다.
+  static CatalogPlan? includedPlanOf(CatalogService service) {
+    for (final plan in service.plans) {
+      if (plan.priceKrw == 0) return plan;
+    }
+    return null;
+  }
 
   static List<CatalogService> byCategory(ServiceCategory category) =>
       all.where((s) => s.category == category).toList();

@@ -5,8 +5,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/catalog/catalog_service.dart';
 import '../../data/catalog/service_catalog.dart';
+import '../../providers/subscription_providers.dart';
 import '../../widgets/service_browser.dart';
 import '../edit/subscription_form_screen.dart';
+import 'bundle_notice.dart';
 
 /// 구독을 추가할 때 먼저 서비스를 고르는 화면.
 ///
@@ -30,12 +32,49 @@ class _ServicePickerScreenState extends ConsumerState<ServicePickerScreen> {
     super.dispose();
   }
 
-  void _openForm({CatalogService? service, String? customName}) {
+  void _openForm({
+    CatalogService? service,
+    String? customName,
+    CatalogPlan? initialPlan,
+  }) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) =>
-            SubscriptionFormScreen(service: service, customName: customName),
+        builder: (_) => SubscriptionFormScreen(
+          service: service,
+          customName: customName,
+          initialPlan: initialPlan,
+        ),
       ),
+    );
+  }
+
+  /// 상위 상품에 포함되는 서비스라면 어떻게 등록할지 먼저 묻는다.
+  ///
+  /// 와우 멤버십을 이미 등록한 사람이 쿠팡플레이를 제값으로 넣으면 실제로
+  /// 내지 않는 돈이 매달 합계에 더해진다.
+  Future<void> _pickService(CatalogService service) async {
+    final parent = bundledParentAmong(
+      service,
+      ref.read(allSubscriptionsProvider),
+    );
+
+    if (parent == null) {
+      _openForm(service: service);
+      return;
+    }
+
+    final choice = await askBundleChoice(
+      context,
+      service: service,
+      parent: parent,
+    );
+    if (choice == null || !mounted) return;
+
+    _openForm(
+      service: service,
+      initialPlan: choice == BundleChoice.included
+          ? ServiceCatalog.includedPlanOf(service)
+          : null,
     );
   }
 
@@ -75,7 +114,7 @@ class _ServicePickerScreenState extends ConsumerState<ServicePickerScreen> {
             Expanded(
               child: ServiceBrowser(
                 query: _query,
-                onTap: (service) => _openForm(service: service),
+                onTap: _pickService,
               ),
             ),
           SafeArea(

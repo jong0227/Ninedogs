@@ -6,10 +6,12 @@ import '../../core/format/formatters.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/catalog/catalog_service.dart';
+import '../../data/catalog/service_catalog.dart';
 import '../../data/models/money.dart';
 import '../../data/models/subscription.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/subscription_providers.dart';
+import '../../widgets/app_date_picker.dart';
 import '../../widgets/service_browser.dart';
 import '../../widgets/service_icon.dart';
 import '../shell/app_shell.dart';
@@ -37,6 +39,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   /// 맨 처음 보여주는 앱 소개. "시작하기"를 누르면 고르기 단계로 넘어간다.
   bool _showIntro = true;
 
+  /// 상위 상품에 포함돼서 0원으로 맞춘 것들. 아래에 안내로 보여준다.
+  final _bundledNames = <String>[];
+
   @override
   void dispose() {
     _search.dispose();
@@ -55,7 +60,31 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         _selected.add(service.id);
         _drafts[service.id] = _SubscriptionDraft(service);
       }
+      _applyBundleDefaults();
     });
+  }
+
+  /// 상위 상품까지 같이 고른 서비스는 0원 요금제로 맞춘다.
+  ///
+  /// 와우 멤버십과 쿠팡플레이를 둘 다 고르면 7,890원이 두 번 잡힌다.
+  /// 여기서는 탭 몇 번으로 끝내는 흐름이라 창을 띄워 묻지 않고 조용히
+  /// 맞춘 뒤 아래에 안내만 남긴다. 요금제는 다음 단계에서 바꿀 수 있다.
+  void _applyBundleDefaults() {
+    _bundledNames.clear();
+
+    for (final draft in _drafts.values) {
+      final parentId = draft.service.includedIn;
+      if (parentId == null || !_selected.contains(parentId)) continue;
+
+      final included = ServiceCatalog.includedPlanOf(draft.service);
+      if (included == null) continue;
+
+      draft.selectPlan(included);
+      final parent = ServiceCatalog.byId(parentId);
+      if (parent != null) {
+        _bundledNames.add('${draft.service.name}은(는) ${parent.name}에 포함');
+      }
+    }
   }
 
   Future<void> _finish() async {
@@ -238,7 +267,31 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (_selected.isNotEmpty)
+              // 번들로 묶인 게 있으면 그것부터 알려준다. 왜 0원으로
+              // 잡혔는지 모르면 오히려 잘못된 줄 안다.
+              if (_bundledNames.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.card_giftcard_outlined,
+                        size: 14,
+                        color: AppColors.accent,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          '${_bundledNames.join(', ')}돼서 0원으로 잡았어요',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: AppColors.accent,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (_selected.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: Text(
@@ -548,8 +601,8 @@ class _DraftCard extends StatelessWidget {
   final VoidCallback onChanged;
 
   Future<void> _pickStartDate(BuildContext context) async {
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await pickDate(
+      context,
       initialDate: draft.startedAt,
       firstDate: DateTime(2010),
       lastDate: DateTime.now(),

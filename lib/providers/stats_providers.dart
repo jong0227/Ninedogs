@@ -43,12 +43,32 @@ ServiceCategory? categoryOf(Subscription subscription) {
 /// 기준으로만 집계한다. (대부분 원화 하나뿐이다)
 final categorySpendProvider = Provider<List<CategorySpend>>((ref) {
   final active = ref.watch(activeSubscriptionsProvider);
-  if (active.isEmpty) return const [];
+  return _bucketByCategory(active, sortByLifetime: false);
+});
 
-  final currency = _dominantCurrency(active);
+/// 분야별 **누적** 지출. 해지한 구독도 함께 센다.
+///
+/// "지금까지 쓴 돈"은 지금 구독 중인지와 상관없다. 작년에 끊은 넷플릭스에
+/// 낸 돈도 실제로 나간 돈이므로 빼면 총액이 실제보다 작아진다.
+final categoryLifetimeProvider = Provider<List<CategorySpend>>((ref) {
+  final all = ref.watch(allSubscriptionsProvider);
+  return _bucketByCategory(all, sortByLifetime: true);
+});
+
+/// 구독 목록을 분야별로 묶는다.
+///
+/// 통화가 섞여 있으면 비중 계산이 무의미해지므로 **가장 많이 쓰는 통화**
+/// 기준으로만 집계한다. (대부분 원화 하나뿐이다)
+List<CategorySpend> _bucketByCategory(
+  List<Subscription> subscriptions, {
+  required bool sortByLifetime,
+}) {
+  if (subscriptions.isEmpty) return const [];
+
+  final currency = _dominantCurrency(subscriptions);
   final buckets = <ServiceCategory?, List<Subscription>>{};
 
-  for (final subscription in active) {
+  for (final subscription in subscriptions) {
     if (subscription.currency != currency) continue;
     buckets.putIfAbsent(categoryOf(subscription), () => []).add(subscription);
   }
@@ -68,9 +88,13 @@ final categorySpendProvider = Provider<List<CategorySpend>>((ref) {
     );
   }).toList();
 
-  result.sort((a, b) => b.monthly.minor.compareTo(a.monthly.minor));
+  result.sort(
+    (a, b) => sortByLifetime
+        ? b.lifetime.minor.compareTo(a.lifetime.minor)
+        : b.monthly.minor.compareTo(a.monthly.minor),
+  );
   return result;
-});
+}
 
 /// 통계에 쓰는 기준 통화의 월 합계. 비중(%) 계산의 분모다.
 final categoryTotalProvider = Provider<Money>((ref) {
@@ -80,6 +104,18 @@ final categoryTotalProvider = Provider<Money>((ref) {
   var total = Money.zero(spends.first.monthly.currency);
   for (final spend in spends) {
     total += spend.monthly;
+  }
+  return total;
+});
+
+/// 누적 지출 합계. 누적 보기의 비중(%) 계산 분모다.
+final categoryLifetimeTotalProvider = Provider<Money>((ref) {
+  final spends = ref.watch(categoryLifetimeProvider);
+  if (spends.isEmpty) return Money.zero();
+
+  var total = Money.zero(spends.first.lifetime.currency);
+  for (final spend in spends) {
+    total += spend.lifetime;
   }
   return total;
 });

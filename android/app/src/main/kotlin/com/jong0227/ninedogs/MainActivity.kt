@@ -1,7 +1,12 @@
 package com.jong0227.ninedogs
 
+import android.app.AppOpsManager
+import android.app.usage.UsageStatsManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Process
+import android.provider.Settings
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -67,6 +72,32 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
 
+        // 안 쓰는 구독 찾기(선택 기능). 켜지 않으면 아무것도 읽지 않는다.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, USAGE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "hasPermission" -> result.success(hasUsagePermission())
+                    // 이 권한은 일반 권한 창으로 못 받는다. 설정 화면까지만
+                    // 데려다주고 켜는 건 사용자가 직접 한다.
+                    "openSettings" -> {
+                        startActivity(
+                            Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                        result.success(true)
+                    }
+                    "lastUsed" -> {
+                        val packages = call.argument<List<String>>("packages")
+                        if (packages == null) {
+                            result.error("no_packages", "packages 가 필요합니다", null)
+                        } else {
+                            result.success(lastUsedMillis(packages))
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
         // 앱 업데이트: 내려받은 APK 를 안드로이드 설치 화면으로 넘긴다.
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, INSTALL_CHANNEL)
             .setMethodCallHandler { call, result ->
@@ -87,6 +118,44 @@ class MainActivity : FlutterFragmentActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /** 사용 정보 접근이 켜져 있는지. */
+    private fun hasUsagePermission(): Boolean {
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = appOps.unsafeCheckOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            Process.myUid(),
+            packageName,
+        )
+        return mode == AppOpsManager.MODE_ALLOWED
+    }
+
+    /**
+     * 각 패키지를 마지막으로 쓴 시각(epoch millis). 기록이 없으면 넣지 않는다.
+     *
+     * 최근 1년치만 본다. 그보다 오래된 건 시스템도 잘 갖고 있지 않고,
+     * "1년 넘게 안 썼다"까지만 알아도 판단에는 충분하다.
+     */
+    private fun lastUsedMillis(packages: List<String>): Map<String, Long> {
+        if (!hasUsagePermission()) return emptyMap()
+
+        val manager =
+            getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val now = System.currentTimeMillis()
+        val yearAgo = now - 365L * 24 * 60 * 60 * 1000
+
+        val stats = manager.queryAndAggregateUsageStats(yearAgo, now)
+        val wanted = packages.toSet()
+        val result = mutableMapOf<String, Long>()
+
+        for ((pkg, stat) in stats) {
+            if (pkg !in wanted) continue
+            // 한 번도 안 쓴 앱은 0 이 들어온다. 그건 기록이 없는 것과 같다.
+            if (stat.lastTimeUsed <= 0) continue
+            result[pkg] = stat.lastTimeUsed
+        }
+        return result
     }
 
     /**
@@ -135,5 +204,6 @@ class MainActivity : FlutterFragmentActivity() {
     private companion object {
         const val CHANNEL = "ninedogs/import"
         const val INSTALL_CHANNEL = "ninedogs/install"
+        const val USAGE_CHANNEL = "ninedogs/usage"
     }
 }

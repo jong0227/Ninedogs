@@ -37,6 +37,7 @@ class CatalogService {
     required this.brandColor,
     required this.plans,
     String? searchTerm,
+    this.includedIn,
   }) : searchTerm = searchTerm ?? name;
 
   final String id;
@@ -50,6 +51,13 @@ class CatalogService {
   final int brandColor;
 
   final List<CatalogPlan> plans;
+
+  /// 이 서비스를 혜택으로 끼워주는 상위 상품의 id.
+  ///
+  /// 쿠팡플레이는 와우 멤버십에, Apple Music 은 Apple One 에 딸려온다.
+  /// 둘 다 제값으로 등록하면 실제로 내지 않는 돈이 합계에 잡힌다.
+  /// 이 값이 있으면 추가할 때 상위 상품을 이미 등록했는지 확인해 안내한다.
+  final String? includedIn;
 
   CatalogPlan get defaultPlan => plans.first;
 }
