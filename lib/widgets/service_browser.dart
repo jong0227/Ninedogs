@@ -360,6 +360,22 @@ class ServiceTile extends StatelessWidget {
   final VoidCallback onTap;
   final bool selected;
 
+  static void _showHint(BuildContext context, CatalogService service) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(service.name),
+        content: Text(service.pickerHint!),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -416,6 +432,33 @@ class ServiceTile extends StatelessWidget {
                             Icons.check,
                             size: 11,
                             color: AppColors.onAccent,
+                          ),
+                        ),
+                      ),
+                    // 헷갈릴 만한 서비스만 안내를 단다 (예: 쿠팡플레이 스포츠패스).
+                    // 바깥 GestureDetector 위에 얹히지만 자기 몫의 탭은 자기가
+                    // 가져가므로 눌러도 서비스가 선택되지 않는다.
+                    if (service.pickerHint != null)
+                      Positioned(
+                        top: -4,
+                        left: -4,
+                        child: GestureDetector(
+                          onTap: () => _showHint(context, service),
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: theme.scaffoldBackgroundColor,
+                                width: 2,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.question_mark,
+                              size: 10,
+                              color: theme.textTheme.labelMedium?.color,
+                            ),
                           ),
                         ),
                       ),

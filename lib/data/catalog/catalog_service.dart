@@ -38,6 +38,7 @@ class CatalogService {
     required this.plans,
     String? searchTerm,
     this.includedIn,
+    this.pickerHint,
   }) : searchTerm = searchTerm ?? name;
 
   final String id;
@@ -58,6 +59,13 @@ class CatalogService {
   /// 둘 다 제값으로 등록하면 실제로 내지 않는 돈이 합계에 잡힌다.
   /// 이 값이 있으면 추가할 때 상위 상품을 이미 등록했는지 확인해 안내한다.
   final String? includedIn;
+
+  /// 서비스를 고를 때 헷갈릴 만한 점을 짚어주는 짧은 안내.
+  ///
+  /// 예: 쿠팡플레이는 스포츠패스가 별도 서비스가 아니라 요금제 중 하나라는 걸
+  /// 모르면 따로 찾다가 못 찾을 수 있다. 그리드 타일의 (?) 아이콘을 눌렀을
+  /// 때만 보여준다. 없으면 아이콘 자체를 안 그린다.
+  final String? pickerHint;
 
   CatalogPlan get defaultPlan => plans.first;
 }

@@ -66,28 +66,22 @@ abstract final class ServiceCatalog {
       category: ServiceCategory.video,
       brandColor: 0xFF00A4E4,
       includedIn: 'coupang_wow',
+      // 스포츠패스는 별도 서비스가 아니라 쿠팡플레이의 요금제 하나로 둔다.
+      // 실제로도 같은 앱 안에서 추가로 결제하는 옵션이라 구독 목록에 두 줄로
+      // 나뉘어 있을 이유가 없다. 헷갈리지 않도록 그리드 타일에 안내(?)를 단다.
+      //
       // defaultPlan(=plans.first)은 실제 가격이어야 한다. 와우 멤버십이 없는
       // 사람이 쿠팡플레이만 추가할 수도 있는데, 0원을 기본값으로 두면 그
       // 사람의 진짜 결제 7,890원이 조용히 0원으로 기록된다. 와우를 이미
       // 등록한 사람에게는 추가할 때(bundle_notice)나 온보딩에서 자동으로
       // 0원 요금제를 골라주므로, 여기서는 apple_music/apple_tv 와 같은
       // 순서(실가격 먼저, 포함 요금제 나중)를 따른다.
+      pickerHint: '스포츠 패스 구독자는 쿠팡플레이 선택 후 요금제에서 골라주세요',
       plans: [
         CatalogPlan('따로 결제', 7890),
         CatalogPlan('와우 멤버십에 포함 (추가 결제 없음)', 0),
-      ],
-    ),
-    CatalogService(
-      id: 'coupang_sports_pass',
-      name: '쿠팡플레이 스포츠패스',
-      searchTerm: '쿠팡플레이 스포츠패스',
-      category: ServiceCategory.video,
-      brandColor: 0xFF00A4E4,
-      // 와우 멤버십에 포함되는 쿠팡플레이와 달리, 스포츠패스는 별도로 결제하는
-      // 추가 상품이다. 와우 회원 여부에 따라 가격이 다르다.
-      plans: [
-        CatalogPlan('와우 회원가', 12400),
-        CatalogPlan('일반 회원가', 19300),
+        CatalogPlan('스포츠패스 (와우 회원가)', 12400),
+        CatalogPlan('스포츠패스 (일반 회원가)', 19300),
       ],
     ),
     CatalogService(
@@ -643,8 +637,6 @@ abstract final class ServiceCatalog {
     'tving': 'net.cj.cjhv.gs.tving',
     'wavve': 'kr.co.captv.pooqV2', // 웨이브 (옛 POOQ 패키지를 그대로 쓴다)
     'coupang_play': 'com.coupang.mobile.play',
-    // 스포츠패스는 쿠팡플레이 앱 안의 기능이라 같은 패키지를 쓴다.
-    'coupang_sports_pass': 'com.coupang.mobile.play',
     // 왓챠(스트리밍)는 wplay 다. com.frograms.watcha 는 앱 이름이
     // 'WATCHA PEDIA' 인 평점·리뷰 앱이라 구독과 상관없다. 같은 회사라 헷갈린다.
     'watcha': 'com.frograms.wplay',
@@ -691,7 +683,6 @@ abstract final class ServiceCatalog {
     'tving': 'tving.com',
     'wavve': 'wavve.com',
     'coupang_play': 'coupangplay.com',
-    'coupang_sports_pass': 'coupangplay.com',
     'watcha': 'watcha.com',
     'laftel': 'laftel.net',
     'spotv_now': 'spotvnow.co.kr',
