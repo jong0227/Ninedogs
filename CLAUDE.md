@@ -201,12 +201,15 @@ UI에서 항상 수정 가능하게 노출한다. 사실로 단정하지 말 것
 릴리즈 서명 키는 여기에만 둔다. 절차는 [RELEASE.md](RELEASE.md).
 
 ### Windows 데스크톱 PC (임시 개발용)
-- Flutter `C:\dev\flutter`, Android SDK `C:\Android\sdk`,
-  JDK 17 `C:\Program Files\Eclipse Adoptium\jdk-17.0.19.10-hotspot`
+- Flutter `C:\dev\flutter`, Android SDK `C:\dev\android-sdk`,
+  JDK 17 `C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot`
+  (이 PC에 원래 있던 Eclipse Adoptium JDK와 `C:\Android\sdk` 경로가 어느 시점에
+  Microsoft Build of OpenJDK / `C:\dev\android-sdk`로 바뀌었다. `which java`,
+  `android/local.properties`의 `sdk.dir`로 실제 경로를 다시 확인할 것.)
 - **Gradle이 AF_UNIX 소켓 문제로 실패하는 기기라** 빌드 전 매번 필요:
   ```powershell
-  $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-17.0.19.10-hotspot"
-  $env:Path = "C:\dev\flutter\bin;$env:JAVA_HOME\bin;C:\Android\sdk\platform-tools;$env:Path"
+  $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot"
+  $env:Path = "C:\dev\flutter\bin;$env:JAVA_HOME\bin;C:\dev\android-sdk\platform-tools;$env:Path"
   $env:_JAVA_OPTIONS = "-Djdk.net.unixdomain.tmpdir=C:\Android\tmp"
   ```
 - 릴리즈 키스토어가 없어서 릴리즈 빌드도 디버그 키로 서명된다(테스트 전용).

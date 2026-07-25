@@ -206,11 +206,44 @@ class SubscriptionDetailScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('구독 이력', style: theme.textTheme.headlineSmall),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline, size: 20),
-                tooltip: '이력 추가',
-                color: AppColors.accent,
-                onPressed: () => showPeriodEditor(context, ref, subscription),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (subscription.isActive)
+                    TextButton.icon(
+                      onPressed: () => ref
+                          .read(subscriptionsProvider.notifier)
+                          .cancel(subscription.id),
+                      icon: const Icon(
+                        Icons.pause_circle_outline,
+                        size: 18,
+                      ),
+                      label: const Text('해지 처리'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.negative,
+                      ),
+                    )
+                  else
+                    TextButton.icon(
+                      onPressed: () =>
+                          showResubscribeSheet(context, ref, subscription),
+                      icon: const Icon(
+                        Icons.play_circle_outline,
+                        size: 18,
+                      ),
+                      label: const Text('다시 구독'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.accent,
+                      ),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline, size: 20),
+                    tooltip: '이력 추가',
+                    color: AppColors.accent,
+                    onPressed: () =>
+                        showPeriodEditor(context, ref, subscription),
+                  ),
+                ],
               ),
             ],
           ),
@@ -273,31 +306,6 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                 );
               },
             ),
-            if (subscription.isActive)
-              ListTile(
-                leading: const Icon(Icons.pause_circle_outline),
-                title: const Text('해지 처리'),
-                subtitle: const Text('기록은 남고 월 합계에서만 빠져요'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  ref
-                      .read(subscriptionsProvider.notifier)
-                      .cancel(subscription.id);
-                },
-              )
-            else
-              ListTile(
-                leading: const Icon(
-                  Icons.play_circle_outline,
-                  color: AppColors.accent,
-                ),
-                title: const Text('다시 구독'),
-                subtitle: const Text('끊었던 기간은 이력에 남아요'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  showResubscribeSheet(context, ref, subscription);
-                },
-              ),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: AppColors.negative),
               title: const Text(

@@ -431,6 +431,14 @@ abstract final class ServiceCatalog {
       brandColor: 0xFF76B900,
       plans: [CatalogPlan('프리미엄', 19900), CatalogPlan('얼티밋', 29900)],
     ),
+    CatalogService(
+      id: 'minecraft_realms',
+      name: '마인크래프트 Realms',
+      searchTerm: 'Minecraft',
+      category: ServiceCategory.gaming,
+      brandColor: 0xFF62B347,
+      plans: [CatalogPlan('Realms Plus', 9900)],
+    ),
 
     // ── 자동차·기기 ───────────────────────────────────────
     CatalogService(
@@ -735,6 +743,7 @@ abstract final class ServiceCatalog {
     'playstation_plus': 'playstation.com',
     'nintendo_online': 'nintendo.co.kr',
     'geforce_now': 'nvidia.com',
+    'minecraft_realms': 'minecraft.net',
     'tesla_fsd': 'tesla.com',
     'tesla_connectivity': 'tesla.com',
     'hyundai_bluelink': 'hyundai.com',
