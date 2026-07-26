@@ -8,7 +8,7 @@ import '../../data/models/money.dart';
 import '../../data/models/subscription.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/subscription_providers.dart';
-import '../../widgets/krw_amount_text.dart';
+import '../../widgets/monthly_amount_text.dart';
 import '../../widgets/ninedogs_app_bar.dart';
 import '../../widgets/service_icon.dart';
 import '../add/service_picker_screen.dart';
@@ -319,12 +319,7 @@ class _SubscriptionRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  KrwAmountText(
-                    subscription.currentPrice,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  MonthlyAmountText(subscription),
                 ],
               ),
             ),
