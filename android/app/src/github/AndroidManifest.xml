@@ -1,0 +1,20 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 앱 내 업데이트: GitHub Release 에서 받은 APK 를 설치기로 넘기기 위해.
+         Play 는 자기 메커니즘 아닌 방법으로 자신을 업데이트하는 걸 금지하므로
+         playstore flavor 에는 이 권한과 아래 provider 가 없다. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
+    <application>
+        <!-- 내려받은 APK 를 설치기에 넘길 때 쓰는 FileProvider.
+             file:// 경로를 직접 주면 Android 7+ 가 막으므로 content:// 로 감싼다. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
+    </application>
+</manifest>

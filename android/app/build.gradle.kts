@@ -48,6 +48,17 @@ android {
         versionName = flutter.versionName
     }
 
+    // 같은 코드를 두 경로로 배포한다. GitHub Release 사이드로드용(github)과
+    // Play 스토어용(playstore). Play 는 자체 업데이트 메커니즘 외의 방법으로
+    // 앱이 스스로를 갱신하는 걸 금지해서, 그 기능(권한·FileProvider)은
+    // github flavor 매니페스트(src/github/)에만 둔다. 어느 flavor인지는
+    // Dart 쪽에 --dart-define=DISTRIBUTION=... 으로 넘겨서 화면에 반영한다.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("github") { dimension = "distribution" }
+        create("playstore") { dimension = "distribution" }
+    }
+
     signingConfigs {
         if (hasReleaseKey) {
             create("release") {

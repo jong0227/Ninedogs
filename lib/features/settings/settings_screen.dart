@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/distribution.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/update/update_checker.dart';
@@ -39,9 +40,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.initState();
     // 설정을 열면(=앱을 켜면) 조용히 새 버전이 있는지 자동으로 확인한다.
     // 결과가 있을 때만 카드로 보여주므로 최신이면 티가 나지 않는다.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _checkForUpdate(silent: true);
-    });
+    //
+    // Play 스토어 빌드는 이 기능이 없다 — 업데이트는 Play 가 알아서 한다.
+    if (isGithubDistribution) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _checkForUpdate(silent: true);
+      });
+    }
   }
 
   Future<void> _checkForUpdate({bool silent = false}) async {
@@ -134,31 +139,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               style: theme.textTheme.labelMedium,
             ),
           ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('업데이트 확인'),
-            subtitle: Text(
-              '새 버전이 나왔는지 알아봐요',
-              style: theme.textTheme.labelMedium,
+          // Play 스토어 빌드는 자체 업데이트 확인이 없다. Play 정책상
+          // 앱이 Play 아닌 방법으로 스스로를 갱신할 수 없어서, 업데이트는
+          // Play 스토어 쪽에서 자동으로 처리된다.
+          if (isGithubDistribution) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('업데이트 확인'),
+              subtitle: Text(
+                '새 버전이 나왔는지 알아봐요',
+                style: theme.textTheme.labelMedium,
+              ),
+              trailing: _checking
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh),
+              onTap: _checking ? null : _checkForUpdate,
             ),
-            trailing: _checking
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh),
-            onTap: _checking ? null : _checkForUpdate,
-          ),
-          if (_result != null)
-            _UpdateResultCard(
-              result: _result!,
-              installing: _installing,
-              progress: _installProgress,
-              installError: _installError,
-              onUpdate: _downloadAndInstall,
-              onOpen: _open,
-            ),
+            if (_result != null)
+              _UpdateResultCard(
+                result: _result!,
+                installing: _installing,
+                progress: _installProgress,
+                installError: _installError,
+                onUpdate: _downloadAndInstall,
+                onOpen: _open,
+              ),
+          ],
 
           const SizedBox(height: AppSpacing.xl),
           _SectionTitle('결제 알림'),

@@ -226,12 +226,33 @@ flutter test
 ```
 
 ```bash
-flutter build apk --release
+flutter build apk --release --flavor github
 ```
 
 `--split-per-abi`는 쓰지 않는다. 파일이 여러 개로 쪼개지면 사용자가 자기
 기기에 맞는 걸 골라야 해서 헷갈리고, 앱 내 업데이트 확인도 `.apk` 자산 중
 첫 번째 것을 그냥 받아오므로 잘못된 아키텍처용을 받을 위험이 있다.
+
+### 배포 경로 두 갈래 (github / playstore flavor)
+
+같은 코드를 GitHub Release 사이드로드와 Play 스토어 두 곳에 배포한다.
+Play 는 자기 업데이트 메커니즘 외의 방법으로 앱이 스스로를 갱신하는 걸
+금지하므로, 앱 내 자동 업데이트(APK 다운로드·설치) 기능은 `github`
+flavor 에만 있다 (`android/app/src/github/AndroidManifest.xml` 에
+`REQUEST_INSTALL_PACKAGES` 권한과 `FileProvider`를 몰아뒀다).
+Dart 쪽 분기는 `lib/core/distribution.dart` 의 `isGithubDistribution`.
+
+```bash
+# GitHub Release용 APK (지금까지 쓰던 것과 동일)
+flutter build apk --release --flavor github
+
+# Play 스토어용 App Bundle
+flutter build appbundle --release --flavor playstore --dart-define=DISTRIBUTION=playstore
+```
+
+Play 는 Play App Signing 을 쓴다 — 올리는 AAB는 "업로드 키"로만 서명하면
+되고, 실제 사용자에게 배포되는 서명은 Google 이 관리한다. 지금 릴리즈
+키스토어를 업로드 키로 그대로 쓴다.
 
 앱 아이콘을 새 이미지로 바꾸려면 `assets/icon/source_dog.png` 를 교체하고:
 
