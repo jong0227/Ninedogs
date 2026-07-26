@@ -29,15 +29,12 @@ class CalendarScreen extends ConsumerStatefulWidget {
 
 class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   late DateTime _month = _firstDayOf(DateTime.now());
-  DateTime? _selected;
 
   static DateTime _firstDayOf(DateTime date) => DateTime(date.year, date.month);
 
   void _shiftMonth(int delta) {
-    setState(() {
-      _month = DateTime(_month.year, _month.month + delta);
-      _selected = null;
-    });
+    setState(() => _month = DateTime(_month.year, _month.month + delta));
+    ref.read(calendarSelectedDayProvider.notifier).select(null);
   }
 
   /// 이 달에 결제가 걸린 날짜별 구독 목록.
@@ -61,7 +58,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     final rate = ref.watch(exchangeRateProvider).value;
     final monthTotal = _sumOf(byDay.values.expand((list) => list), rate);
-    final selectedDay = _selected?.day;
+    final selected = ref.watch(calendarSelectedDayProvider);
+    final selectedDay = selected?.day;
 
     return Scaffold(
       appBar: const NinedogsAppBar(section: '결제 캘린더'),
@@ -84,16 +82,18 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             month: _month,
             byDay: byDay,
             selectedDay: selectedDay,
-            onSelectDay: (day) => setState(() {
+            onSelectDay: (day) {
               final tapped = DateTime(_month.year, _month.month, day);
-              _selected = _selected?.day == day ? null : tapped;
-            }),
+              ref
+                  .read(calendarSelectedDayProvider.notifier)
+                  .select(selectedDay == day ? null : tapped);
+            },
           ),
           const SizedBox(height: AppSpacing.lg),
 
           if (selectedDay != null)
             _DayDetail(
-              date: _selected!,
+              date: selected!,
               subscriptions: byDay[selectedDay] ?? const [],
             )
           else

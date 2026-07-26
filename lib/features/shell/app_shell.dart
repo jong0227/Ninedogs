@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -10,6 +11,7 @@ import '../home/home_screen.dart';
 import '../notifications/notification_rationale.dart';
 import '../settings/settings_screen.dart';
 import '../stats/stats_screen.dart';
+import 'back_exit.dart';
 
 /// 앱의 기본 뼈대. 아래 탭으로 구독과 통계를 오간다.
 ///
@@ -55,6 +57,47 @@ class _AppShellState extends ConsumerState<AppShell> {
     if (mounted) _reschedule();
   }
 
+  /// 마지막으로 뒤로가기를 누른 시각. 두 번 눌러야 꺼지게 하는 데 쓴다.
+  DateTime? _lastBackPressedAt;
+
+  void _handleBack() {
+    final action = decideBackAction(
+      tabIndex: ref.read(selectedShellTabProvider),
+      hasOpenDetail: ref.read(calendarSelectedDayProvider) != null,
+      lastBackPressedAt: _lastBackPressedAt,
+      now: DateTime.now(),
+    );
+
+    final messenger = ScaffoldMessenger.of(context);
+
+    switch (action) {
+      case BackAction.closeDetail:
+        ref.read(calendarSelectedDayProvider.notifier).select(null);
+        // 상세를 닫은 것도 탭 전환과 마찬가지로 종료 의사가 아니다.
+        _lastBackPressedAt = null;
+
+      case BackAction.goToFirstTab:
+        ref.read(selectedShellTabProvider.notifier).select(0);
+        // 탭만 옮긴 것이지 종료 의사를 밝힌 게 아니다. 여기서 시각을
+        // 남기면 다음 한 번에 바로 꺼져버린다.
+        _lastBackPressedAt = null;
+
+      case BackAction.warn:
+        _lastBackPressedAt = DateTime.now();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('한 번 더 누르면 종료됩니다'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+      case BackAction.exit:
+        // 앱이 사라진 자리에 안내가 남아 있으면 어색하다.
+        messenger.hideCurrentSnackBar();
+        SystemNavigator.pop();
+    }
+  }
+
   /// 구독이나 설정이 바뀌면 예약을 전부 다시 건다.
   /// 금액·결제일이 바뀐 채로 남은 예약은 틀린 내용을 알려주게 된다.
   void _reschedule() {
@@ -74,47 +117,55 @@ class _AppShellState extends ConsumerState<AppShell> {
     ref.listen(allSubscriptionsProvider, (_, _) => _reschedule());
     ref.listen(reminderDaysProvider, (_, _) => _reschedule());
 
-    return Scaffold(
-      body: IndexedStack(
-        index: index,
-        children: const [
-          HomeScreen(),
-          CalendarScreen(),
-          StatsScreen(),
-          SettingsScreen(),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (value) =>
-            ref.read(selectedShellTabProvider.notifier).select(value),
-        backgroundColor: theme.colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-        indicatorColor: AppColors.accent.withValues(alpha: 0.18),
-        height: 64,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.subscriptions_outlined),
-            selectedIcon: Icon(Icons.subscriptions, color: AppColors.accent),
-            label: '구독',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month, color: AppColors.accent),
-            label: '캘린더',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.donut_small_outlined),
-            selectedIcon: Icon(Icons.donut_small, color: AppColors.accent),
-            label: '통계',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings, color: AppColors.accent),
-            label: '설정',
-          ),
-        ],
+    return PopScope(
+      // 뒤로가기를 시스템에 넘기지 않고 직접 받는다. 그냥 두면 한 번에
+      // 앱이 닫힌다.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _handleBack();
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: index,
+          children: const [
+            HomeScreen(),
+            CalendarScreen(),
+            StatsScreen(),
+            SettingsScreen(),
+          ],
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: index,
+          onDestinationSelected: (value) =>
+              ref.read(selectedShellTabProvider.notifier).select(value),
+          backgroundColor: theme.colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          indicatorColor: AppColors.accent.withValues(alpha: 0.18),
+          height: 64,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.subscriptions_outlined),
+              selectedIcon: Icon(Icons.subscriptions, color: AppColors.accent),
+              label: '구독',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.calendar_month_outlined),
+              selectedIcon: Icon(Icons.calendar_month, color: AppColors.accent),
+              label: '캘린더',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.donut_small_outlined),
+              selectedIcon: Icon(Icons.donut_small, color: AppColors.accent),
+              label: '통계',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings, color: AppColors.accent),
+              label: '설정',
+            ),
+          ],
+        ),
       ),
     );
   }

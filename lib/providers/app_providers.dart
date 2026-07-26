@@ -75,6 +75,24 @@ final selectedShellTabProvider =
       SelectedShellTabNotifier.new,
     );
 
+/// 캘린더 탭에서 고른 날짜. 날짜를 고르면 그날 결제만 보여주는 화면으로
+/// 바뀐다.
+///
+/// 화면 State 가 아니라 provider 로 둔 이유: 뒤로가기를 눌렀을 때 날짜
+/// 선택부터 풀어줘야 하는데, 그 판단은 [AppShell] 이 하기 때문에 탭 바깥에서도
+/// 지금 날짜가 선택돼 있는지 알아야 한다.
+class CalendarSelectedDayNotifier extends Notifier<DateTime?> {
+  @override
+  DateTime? build() => null;
+
+  void select(DateTime? day) => state = day;
+}
+
+final calendarSelectedDayProvider =
+    NotifierProvider<CalendarSelectedDayNotifier, DateTime?>(
+      CalendarSelectedDayNotifier.new,
+    );
+
 /// 설치된 앱의 버전. 예: '1.0.0'
 final appVersionProvider = FutureProvider<String>(
   (ref) async => (await PackageInfo.fromPlatform()).version,
