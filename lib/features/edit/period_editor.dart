@@ -32,7 +32,7 @@ Future<void> showPeriodEditor(
   var ongoing = isEditing ? existing.endedAt == null : false;
 
   final priceController = TextEditingController(
-    text: _amountText(subscription.priceAt(startedAt)),
+    text: subscription.priceAt(startedAt).inputText,
   );
 
   final result = await showModalBottomSheet<_PeriodResult>(
@@ -61,9 +61,7 @@ Future<void> showPeriodEditor(
               if (endedAt != null && endedAt!.isBefore(picked)) {
                 endedAt = picked;
               }
-              priceController.text = _amountText(
-                subscription.priceAt(picked),
-              );
+              priceController.text = subscription.priceAt(picked).inputText;
             });
           }
 
@@ -287,7 +285,3 @@ class _DateRow extends StatelessWidget {
     );
   }
 }
-
-String _amountText(Money money) => money.decimalDigits == 0
-    ? money.major.toStringAsFixed(0)
-    : money.major.toStringAsFixed(2);

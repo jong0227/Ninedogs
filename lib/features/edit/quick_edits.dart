@@ -22,7 +22,7 @@ Future<void> showPriceEditor(
   Subscription subscription,
 ) async {
   final controller = TextEditingController(
-    text: _amountText(subscription.currentPrice),
+    text: subscription.currentPrice.inputText,
   );
 
   final entered = await showDialog<Money>(
@@ -543,10 +543,6 @@ Future<void> showPaymentMethodEditor(
       .read(subscriptionsProvider.notifier)
       .setPaymentMethod(subscription.id, saved.isEmpty ? null : saved);
 }
-
-String _amountText(Money money) => money.decimalDigits == 0
-    ? money.major.toStringAsFixed(0)
-    : money.major.toStringAsFixed(2);
 
 /// 눌러서 고칠 수 있다는 걸 알려주는 연필 아이콘.
 class EditAffordance extends StatelessWidget {

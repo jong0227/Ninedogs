@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/notifications/notification_service.dart';
 import 'app_providers.dart';
+import 'subscription_providers.dart';
 
 /// 전체 기본 알림 시점. 구독별로 따로 정하지 않았으면 이 값을 쓴다.
 ///
@@ -48,3 +49,17 @@ final reminderDaysProvider = NotifierProvider<ReminderDaysNotifier, List<int>>(
 final notificationServiceProvider = Provider<NotificationService>(
   (ref) => NotificationService(),
 );
+
+/// 구독이나 알림 설정이 바뀌면 예약을 다시 건다.
+///
+/// 예전엔 이 연결이 [AppShell] 의 build() 안에 있었다. 화면이 도메인
+/// 부수효과를 떠맡은 꼴이라, 그 위젯이 화면에 없으면 예약이 갱신되지
+/// 않는다. 알림은 어느 화면을 보고 있는지와 무관해야 한다.
+///
+/// 살아 있으려면 누군가 watch 해야 한다 — [AppShell] 이 한 줄로 붙든다.
+final notificationSchedulerProvider = Provider<void>((ref) {
+  final subscriptions = ref.watch(allSubscriptionsProvider);
+  final days = ref.watch(reminderDaysProvider);
+
+  ref.read(notificationServiceProvider).rescheduleAll(subscriptions, days);
+});

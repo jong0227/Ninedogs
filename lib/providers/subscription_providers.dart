@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/exchange/spending.dart';
 import '../data/models/billing_cycle.dart';
 import '../data/models/money.dart';
 import '../data/models/subscription.dart';
@@ -343,7 +344,19 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
 
     final next = transform(current);
     state = AsyncData(next);
-    await _repository.save(next);
+
+    try {
+      await _repository.save(next);
+    } catch (_) {
+      // 저장이 실패했는데 화면만 바뀌어 있으면, 사용자는 저장된 줄 알고
+      // 앱을 끈다. 그리고 다시 켰을 때 입력이 사라져 있다. 손으로 넣은
+      // 기록이라 되살릴 방법도 없다.
+      //
+      // 기기 저장소는 거의 실패하지 않지만 가족 공유(Firestore)는 네트워크를
+      // 탄다. 화면을 되돌려서 "안 됐다"를 눈에 보이게 한다.
+      state = AsyncData(current);
+      rethrow;
+    }
   }
 }
 
@@ -397,12 +410,34 @@ final monthlyTotalKrwProvider = Provider<Money?>(
   ),
 );
 
-final lifetimeTotalKrwProvider = Provider<Money?>(
-  (ref) => _combineToKrw(
-    ref.watch(lifetimeTotalProvider),
-    ref.watch(exchangeRateProvider).value,
-  ),
-);
+/// 지금까지 쓴 돈을 원화로. **결제마다 그날 환율을 적용한다.**
+///
+/// 예전엔 통화별 합계를 오늘 환율로 한 번에 환산했는데, 통계 화면은 따로
+/// 계산해서 같은 질문에 두 화면이 다른 숫자를 내놨다. 이제 둘 다
+/// [lifetimeTotalInKrw] 하나를 쓴다.
+final lifetimeTotalKrwProvider = Provider<Money?>((ref) {
+  final subscriptions = ref.watch(allSubscriptionsProvider);
+  if (subscriptions.isEmpty) return Money.zero();
+
+  final todayRate = ref.watch(exchangeRateProvider).value;
+  final rates = ref.watch(rateTableProvider).value;
+
+  // 환산할 수 없는 외화 구독이 하나라도 있으면 합계를 감춘다. 일부만 빠진
+  // 숫자를 총액이라고 보여주면 틀린 값을 믿게 된다.
+  final unconvertible = subscriptions.any(
+    (s) =>
+        s.currency != Money.krw &&
+        todayRate == null &&
+        (rates == null || rates.isEmpty),
+  );
+  if (unconvertible) return null;
+
+  return lifetimeTotalInKrw(
+    subscriptions,
+    rates: rates,
+    todayRate: todayRate,
+  );
+});
 
 /// 통화별 합계를 전부 원화로 바꿔 하나로 더한다.
 /// KRW·USD 말고 다른 통화가 섞여 있거나 환율이 없으면 null.

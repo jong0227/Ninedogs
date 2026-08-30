@@ -194,7 +194,7 @@ class _PlanChangeBody extends StatefulWidget {
 
 class _PlanChangeBodyState extends State<_PlanChangeBody> {
   late final TextEditingController _amount = TextEditingController(
-    text: _amountText(widget.subscription.currentPrice),
+    text: widget.subscription.currentPrice.inputText,
   );
 
   late BillingCycle _cycle = widget.subscription.cycle;
@@ -252,7 +252,7 @@ class _PlanChangeBodyState extends State<_PlanChangeBody> {
                         _cycle = plan.cycle;
                         _amount.text = plan.price.isZero
                             ? '0'
-                            : _amountText(plan.price);
+                            : plan.price.inputText;
                       }),
                     ),
                 ],
@@ -378,7 +378,3 @@ class _Chip extends StatelessWidget {
     );
   }
 }
-
-String _amountText(Money money) => money.decimalDigits == 0
-    ? money.major.toStringAsFixed(0)
-    : money.major.toStringAsFixed(2);

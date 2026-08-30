@@ -22,7 +22,7 @@ Future<void> showPriceHistoryEditor(
   PricePoint? existing,
 }) async {
   final controller = TextEditingController(
-    text: existing == null ? '' : _amountText(existing.amount),
+    text: existing == null ? '' : existing.amount.inputText,
   );
   var pickedDate = existing?.effectiveFrom ?? subscription.startedAt;
 
@@ -171,7 +171,3 @@ class _PriceHistoryResult {
   final Money? amount;
   final bool delete;
 }
-
-String _amountText(Money money) => money.decimalDigits == 0
-    ? money.major.toStringAsFixed(0)
-    : money.major.toStringAsFixed(2);

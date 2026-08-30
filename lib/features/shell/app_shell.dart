@@ -114,8 +114,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     final theme = Theme.of(context);
     final index = ref.watch(selectedShellTabProvider);
 
-    ref.listen(allSubscriptionsProvider, (_, _) => _reschedule());
-    ref.listen(reminderDaysProvider, (_, _) => _reschedule());
+    // 알림 재예약을 살려두기만 한다. 언제 무엇을 다시 걸지는
+    // notificationSchedulerProvider 가 안다 — 화면이 알 일이 아니다.
+    ref.watch(notificationSchedulerProvider);
 
     return PopScope(
       // 뒤로가기를 시스템에 넘기지 않고 직접 받는다. 그냥 두면 한 번에

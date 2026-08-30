@@ -52,6 +52,14 @@ class Money implements Comparable<Money> {
   /// 사람이 입력·확인하는 단위. KRW 13500 -> 13500.0, USD 999 -> 9.99
   double get major => minor / _pow10(decimalDigits);
 
+  /// 금액 입력창에 채워 넣을 문자열. 통화 기호도 천 단위 구분도 없는 숫자만.
+  ///
+  /// 원화는 소수점을 붙이지 않고(13500), 달러는 두 자리를 붙인다(9.99).
+  /// 편집 화면마다 똑같은 함수를 복사해 두고 있었다.
+  String get inputText => decimalDigits == 0
+      ? major.toStringAsFixed(0)
+      : major.toStringAsFixed(2);
+
   /// 입력창의 문자열을 금액으로. 숫자로 읽을 수 없으면 null.
   static Money? tryParse(String text, {String currency = krw}) {
     final cleaned = text.replaceAll(RegExp(r'[,\s₩$]'), '');

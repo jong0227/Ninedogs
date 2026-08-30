@@ -19,7 +19,7 @@ Future<void> showResubscribeSheet(
   Subscription subscription,
 ) async {
   final controller = TextEditingController(
-    text: _amountText(subscription.currentPrice),
+    text: subscription.currentPrice.inputText,
   );
   var startedAt = DateTime.now();
 
@@ -151,7 +151,3 @@ Future<void> showResubscribeSheet(
       .read(subscriptionsProvider.notifier)
       .resubscribe(subscription.id, startedAt: startedAt, price: price);
 }
-
-String _amountText(Money money) => money.decimalDigits == 0
-    ? money.major.toStringAsFixed(0)
-    : money.major.toStringAsFixed(2);

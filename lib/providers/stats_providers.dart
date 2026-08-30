@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/catalog/catalog_service.dart';
 import '../data/catalog/service_catalog.dart';
 import '../data/exchange/exchange_rate_history.dart';
+import '../data/exchange/spending.dart';
 import '../data/models/money.dart';
 import '../data/models/subscription.dart';
 import 'app_providers.dart';
@@ -67,30 +68,6 @@ final categoryLifetimeProvider = Provider<List<CategorySpend>>((ref) {
   );
 });
 
-/// 이 구독에 지금까지 쓴 돈을 원화로. **결제마다 그날 환율을 적용한다.**
-///
-/// 예전엔 누적 총액을 통째로 오늘 환율 하나로 환산했다. 환율이 1,300원에서
-/// 1,450원으로 움직인 구간이 있으면 몇 년치가 통째로 어긋난다.
-/// [rates] 가 없으면(아직 못 받아왔으면) 오늘 환율로 대신한다.
-Money? lifetimeInKrw(
-  Subscription subscription, {
-  required RateTable? rates,
-  required double? usdToKrwRate,
-}) {
-  if (subscription.currency == Money.krw && !subscription.hasMixedCurrency) {
-    return subscription.totalSpent;
-  }
-
-  if (rates != null && !rates.isEmpty) {
-    var total = Money.zero();
-    for (final charge in subscription.charges) {
-      total += rates.toKrwOn(charge.amount, charge.date);
-    }
-    return total;
-  }
-
-  return _krwOrNull(subscription.totalSpent, usdToKrwRate);
-}
 
 /// 구독 목록을 분야별로 묶는다.
 ///
@@ -123,7 +100,7 @@ List<CategorySpend> _bucketByCategory(
       final lifetimeKrw = lifetimeInKrw(
         subscription,
         rates: rates,
-        usdToKrwRate: usdToKrwRate,
+        todayRate: usdToKrwRate,
       );
       if (monthlyKrw != null) monthly += monthlyKrw;
       if (lifetimeKrw != null) lifetime += lifetimeKrw;
