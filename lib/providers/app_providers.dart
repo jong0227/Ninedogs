@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/exchange/exchange_rate_history.dart';
 import '../data/exchange/exchange_rate_service.dart';
 import '../data/icons/icon_palette.dart';
 import '../data/icons/icon_resolver.dart';
+import '../data/models/money.dart';
 import '../data/update/apk_installer.dart';
 import '../data/update/update_checker.dart';
+import 'subscription_providers.dart';
 
 /// main() 에서 실제 인스턴스로 override 한다.
 final sharedPreferencesProvider = Provider<SharedPreferences>(
@@ -113,6 +116,33 @@ final exchangeRateProvider = FutureProvider<double>(
       .watch(exchangeRateServiceProvider)
       .rate(ref.watch(sharedPreferencesProvider)),
 );
+
+final exchangeRateHistoryServiceProvider =
+    Provider<ExchangeRateHistoryService>(
+      (ref) => ExchangeRateHistoryService(),
+    );
+
+/// 날짜별 USD -> KRW 환율 표.
+///
+/// 누적 지출을 "그때 그 환율"로 계산하는 데 쓴다. 가장 오래된 결제일까지
+/// 덮도록 받아온다 — 구독을 5년 전부터 했으면 5년치가 필요하다.
+/// 받아오기에 실패하면 빈 표가 오고, 그 경우 [RateTable.rateOn] 이
+/// 대략값을 돌려주므로 화면이 비지는 않는다.
+final rateTableProvider = FutureProvider<RateTable>((ref) async {
+  final subscriptions = ref.watch(allSubscriptionsProvider);
+
+  // 달러 구독이 하나도 없으면 환율 표가 필요 없다. 괜히 네트워크를 타지 않는다.
+  final hasForeign = subscriptions.any((s) => s.currency != Money.krw);
+  if (!hasForeign) return RateTable(const {});
+
+  final earliest = subscriptions
+      .map((s) => s.firstStartedAt)
+      .reduce((a, b) => a.isBefore(b) ? a : b);
+
+  return ref
+      .watch(exchangeRateHistoryServiceProvider)
+      .load(ref.watch(sharedPreferencesProvider), earliest: earliest);
+});
 
 typedef IconRequest = ({String serviceId, String searchTerm, String? domain});
 

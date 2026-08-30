@@ -10,7 +10,7 @@ Subscription build({
   DateTime? canceledAt,
   DateTime? trialEndsAt,
 }) {
-  return Subscription(
+  return Subscription.create(
     id: 'test',
     name: '넷플릭스',
     cycle: cycle,
@@ -245,7 +245,7 @@ void main() {
   });
 
   group('알림 설정', () {
-    Subscription withReminders(List<int>? days) => Subscription(
+    Subscription withReminders(List<int>? days) => Subscription.create(
       id: 'r',
       name: '넷플릭스',
       cycle: BillingCycle.monthly,
@@ -290,12 +290,12 @@ void main() {
 
     test('copyWith 로 전체 설정 따르기로 되돌릴 수 있다', () {
       final custom = withReminders([7]);
-      expect(custom.copyWith(clearReminders: true).reminderDaysBefore, isNull);
+      expect(custom.copyWith(reminderDaysBefore: () => null).reminderDaysBefore, isNull);
     });
   });
 
   test('JSON 으로 왕복해도 값이 유지된다', () {
-    final original = Subscription(
+    final original = Subscription.create(
       id: 'abc',
       serviceId: 'netflix',
       name: '넷플릭스',
@@ -388,7 +388,7 @@ void main() {
     });
 
     test('직접 지정한 결제일이 체험 종료일보다 우선한다', () {
-      final subscription = Subscription(
+      final subscription = Subscription.create(
         id: 'test',
         name: '넷플릭스',
         cycle: BillingCycle.monthly,
@@ -422,13 +422,13 @@ void main() {
         prices: prices,
       );
 
-      expect(subscription.copyWith(clearTrial: true).trialEndsAt, isNull);
+      expect(subscription.copyWith(trialEndsAt: () => null).trialEndsAt, isNull);
     });
   });
 
   group('끊었다 다시 구독한 구간', () {
     // 1~3월 구독(10,000원) -> 끊음 -> 7월부터 다시(13,500원)
-    Subscription onOff() => Subscription(
+    Subscription onOff() => Subscription.create(
       id: 'test',
       name: '넷플릭스',
       cycle: BillingCycle.monthly,

@@ -163,7 +163,7 @@ class _SubscriptionFormScreenState
   }
 
   Future<void> _create(Money price) async {
-    final subscription = Subscription(
+    final subscription = Subscription.create(
       id: const Uuid().v4(),
       serviceId: widget.service?.id,
       name: _name.text.trim(),
@@ -172,7 +172,9 @@ class _SubscriptionFormScreenState
       startedAt: _startedAt,
       billingAnchor: _billingAnchor,
       trialEndsAt: _trialEndsAt,
-      priceHistory: [PricePoint(effectiveFrom: _startedAt, amount: price)],
+      priceHistory: [
+        PricePoint(effectiveFrom: _startedAt, amount: price, cycle: _cycle),
+      ],
       paymentMethod: _nullIfBlank(_paymentMethod.text),
       memo: _nullIfBlank(_memo.text),
     );
@@ -181,61 +183,118 @@ class _SubscriptionFormScreenState
   }
 
   Future<void> _applyEdit(Subscription existing, Money price) async {
-    var history = existing.priceHistory;
+    final history = await _nextPriceHistory(existing, price);
+    if (history == null) return; // 사용자가 취소함
 
-    if (price != existing.currentPrice) {
-      final kind = await askPriceEditKind(
-        context,
-        before: existing.currentPrice,
-        next: price,
-      );
-      if (kind == null) return; // 사용자가 취소함
-
-      if (kind == PriceEditKind.changed) {
-        final effectiveFrom = await _pickEffectiveDate();
-        if (effectiveFrom == null) return;
-        history = [
-          ...history,
-          PricePoint(effectiveFrom: effectiveFrom, amount: price),
-        ];
-      } else {
-        history = [
-          ...history.take(history.length - 1),
-          PricePoint(
-            effectiveFrom: history.last.effectiveFrom,
-            amount: price,
-          ),
-        ];
-      }
-    }
-
-    final updated = Subscription(
-      id: existing.id,
-      serviceId: existing.serviceId,
+    // 예전엔 여기서 Subscription 을 통째로 다시 만들다가 pastPeriods 와
+    // reminderDaysBefore 를 빠뜨려, 편집만 해도 구독 이력이 날아갔다.
+    // copyWith 는 건드리지 않은 필드를 그대로 넘기므로 그 사고가 안 난다.
+    final updated = existing.copyWith(
       name: _name.text.trim(),
-      iconUrl: existing.iconUrl,
-      brandColorValue: existing.brandColorValue,
       cycle: _cycle,
       startedAt: _startedAt,
-      billingAnchor: _billingAnchor,
-      trialEndsAt: _trialEndsAt,
       priceHistory: history,
-      canceledAt: existing.canceledAt,
-      accessEndsAt: existing.accessEndsAt,
-      paymentMethod: _nullIfBlank(_paymentMethod.text),
-      credentialId: existing.credentialId,
-      memo: _nullIfBlank(_memo.text),
+      billingAnchor: () => _billingAnchor,
+      trialEndsAt: () => _trialEndsAt,
+      paymentMethod: () => _nullIfBlank(_paymentMethod.text),
+      memo: () => _nullIfBlank(_memo.text),
     );
 
     await ref.read(subscriptionsProvider.notifier).replace(updated);
   }
 
-  Future<DateTime?> _pickEffectiveDate() => pickDate(
+  /// 바뀐 금액·주기를 반영한 가격 이력. 사용자가 중간에 취소하면 null.
+  Future<List<PricePoint>?> _nextPriceHistory(
+    Subscription existing,
+    Money price,
+  ) async {
+    final currencyChanged = _currency != existing.currency;
+    final priceChanged = price != existing.currentPrice;
+    final cycleChanged = _cycle != existing.cycle;
+
+    // 통화를 바꾸면 옛 항목은 원화, 새 항목은 달러가 되어 이력에 두 통화가
+    // 섞인다. 그 상태로는 누적 지출을 더할 수 없다 — Money 의 통화 검사는
+    // assert 라 릴리즈에서는 사라지고, 13,500원을 $135.00 로 조용히 더한다.
+    // 그래서 섞이게 두지 않고, 이력을 새 통화로 다시 시작할지 먼저 묻는다.
+    if (currencyChanged) {
+      final reset = await _confirmCurrencyReset(existing);
+      if (reset != true) return null;
+      return [
+        PricePoint(effectiveFrom: _startedAt, amount: price, cycle: _cycle),
+      ];
+    }
+
+    if (!priceChanged && !cycleChanged) return existing.priceHistory;
+
+    // 금액이 그대로고 주기만 바뀐 경우엔 "요금이 올랐나 / 잘못 적었나"를
+    // 묻는 게 말이 안 된다. 언제부터 그 주기였는지만 물으면 된다.
+    if (!priceChanged) {
+      final from = await _pickEffectiveDate(helpText: '언제부터 이 주기로 바뀌었나요?');
+      if (from == null) return null;
+      return [
+        ...existing.priceHistory,
+        PricePoint(effectiveFrom: from, amount: price, cycle: _cycle),
+      ];
+    }
+
+    final kind = await askPriceEditKind(
+      context,
+      before: existing.currentPrice,
+      next: price,
+    );
+    if (kind == null) return null;
+
+    if (kind == PriceEditKind.changed) {
+      final from = await _pickEffectiveDate();
+      if (from == null) return null;
+      return [
+        ...existing.priceHistory,
+        PricePoint(effectiveFrom: from, amount: price, cycle: _cycle),
+      ];
+    }
+
+    // 정정: 이력을 늘리지 않고 마지막 항목을 갈아끼운다.
+    final last = existing.priceHistory.last;
+    return [
+      ...existing.priceHistory.take(existing.priceHistory.length - 1),
+      PricePoint(
+        effectiveFrom: last.effectiveFrom,
+        amount: price,
+        cycle: _cycle,
+      ),
+    ];
+  }
+
+  Future<bool?> _confirmCurrencyReset(Subscription existing) => showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('통화를 바꿀까요?'),
+      content: Text(
+        '${existing.currency} 로 쌓인 가격 이력 ${existing.priceHistory.length}건을 '
+        '지우고 $_currency 로 다시 시작해요. 두 통화를 섞으면 누적 지출이 '
+        '엉뚱하게 계산돼서, 이력을 함께 정리해야 해요.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('취소'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('바꾸기'),
+        ),
+      ],
+    ),
+  );
+
+  Future<DateTime?> _pickEffectiveDate({
+    String helpText = '언제부터 바뀐 금액인가요?',
+  }) => pickDate(
     context,
     initialDate: DateTime.now(),
     firstDate: _startedAt,
     lastDate: DateTime.now(),
-    helpText: '언제부터 바뀐 금액인가요?',
+    helpText: helpText,
   );
 
   Future<void> _pickDate({

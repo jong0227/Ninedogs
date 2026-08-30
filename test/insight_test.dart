@@ -17,7 +17,7 @@ Subscription sub({
   BillingCycle cycle = BillingCycle.monthly,
   DateTime? startedAt,
 }) {
-  return Subscription(
+  return Subscription.create(
     id: id,
     serviceId: serviceId,
     name: name,

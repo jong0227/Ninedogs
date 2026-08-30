@@ -33,7 +33,7 @@ Subscription sub(
   String currency = Money.krw,
 }) {
   final start = DateTime(2026, 1, 1);
-  return Subscription(
+  return Subscription.create(
     id: id,
     serviceId: serviceId,
     name: id,

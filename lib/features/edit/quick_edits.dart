@@ -265,8 +265,9 @@ class _AmountDelta extends StatelessWidget {
 }
 
 /// 바텀시트에서 고르는 항목 한 줄. [_ChoiceCard] 와 같은 결로 맞춘다.
-class _SheetAction extends StatelessWidget {
-  const _SheetAction({
+class SheetAction extends StatelessWidget {
+  const SheetAction({
+    super.key,
     required this.icon,
     required this.title,
     required this.body,
@@ -436,7 +437,7 @@ Future<void> showBillingAnchorEditor(
                 style: theme.textTheme.labelMedium,
               ),
               const SizedBox(height: AppSpacing.lg),
-              _SheetAction(
+              SheetAction(
                 icon: Icons.event_outlined,
                 title: '결제일 직접 지정',
                 body: '가장 최근에 결제된 날을 골라주세요',
@@ -444,7 +445,7 @@ Future<void> showBillingAnchorEditor(
               ),
               if (subscription.billingAnchor != null) ...[
                 const SizedBox(height: AppSpacing.sm),
-                _SheetAction(
+                SheetAction(
                   icon: Icons.restart_alt,
                   title: '시작일과 같게',
                   body: '따로 정한 결제일을 지워요',

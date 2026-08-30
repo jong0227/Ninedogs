@@ -90,7 +90,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _finish() async {
     final uuid = const Uuid();
     final subscriptions = _drafts.values.map(
-      (draft) => Subscription(
+      (draft) => Subscription.create(
         id: uuid.v4(),
         serviceId: draft.service.id,
         name: draft.service.name,

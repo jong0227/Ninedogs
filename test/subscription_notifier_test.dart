@@ -32,7 +32,7 @@ class FakeRepository implements SubscriptionRepository {
   Stream<List<Subscription>>? watch() => null;
 }
 
-Subscription netflix() => Subscription(
+Subscription netflix() => Subscription.create(
   id: 'netflix-1',
   name: '넷플릭스',
   cycle: BillingCycle.monthly,
@@ -72,7 +72,7 @@ void main() {
 
     final subject = container.read(subscriptionsProvider.notifier);
     await subject.addAll([
-      Subscription(
+      Subscription.create(
         id: 'spotify-1',
         name: '스포티파이',
         cycle: BillingCycle.monthly,
@@ -141,7 +141,7 @@ void main() {
   test('월 합계는 주기가 다른 구독을 월 환산해서 더한다', () async {
     final subject = await notifier();
     await subject.add(
-      Subscription(
+      Subscription.create(
         id: 'millie-1',
         name: '밀리의서재',
         cycle: BillingCycle.yearly,
@@ -162,7 +162,7 @@ void main() {
   test('통화가 섞이면 통화별로 나눠서 합산한다', () async {
     final subject = await notifier();
     await subject.add(
-      Subscription(
+      Subscription.create(
         id: 'chatgpt-1',
         name: 'ChatGPT',
         cycle: BillingCycle.monthly,
@@ -185,7 +185,7 @@ void main() {
     test('환율이 있으면 통화가 섞여도 하나의 원화 숫자로 합쳐진다', () async {
       final subject = await notifier();
       await subject.add(
-        Subscription(
+        Subscription.create(
           id: 'chatgpt-1',
           name: 'ChatGPT',
           cycle: BillingCycle.monthly,
@@ -219,7 +219,7 @@ void main() {
     test('환율을 못 받아왔으면 null 이라 화면이 통화별 표시로 돌아간다', () async {
       final subject = await notifier();
       await subject.add(
-        Subscription(
+        Subscription.create(
           id: 'chatgpt-1',
           name: 'ChatGPT',
           cycle: BillingCycle.monthly,
@@ -261,7 +261,7 @@ void main() {
       final subject = await notifier();
       // 3/20 에 끊은 것으로 만든다
       await subject.replace(
-        current().copyWith(canceledAt: DateTime(2026, 3, 20)),
+        current().copyWith(canceledAt: () => DateTime(2026, 3, 20)),
       );
       await subject.resubscribe(
         'netflix-1',

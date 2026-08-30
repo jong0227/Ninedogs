@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/models/billing_cycle.dart';
 import '../data/models/money.dart';
 import '../data/models/subscription.dart';
 import '../data/repository/firestore_repositories.dart';
@@ -54,15 +55,71 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
   Future<void> remove(String id) =>
       _mutate((current) => current.where((s) => s.id != id).toList());
 
-  /// 해지 처리. [accessEndsAt] 이후에는 이용 권한도 끝난다.
-  Future<void> cancel(String id, {DateTime? accessEndsAt}) => _mutate(
+  /// 해지 처리. [canceledAt] 을 주지 않으면 오늘로 본다.
+  ///
+  /// 날짜를 받는 이유: 해지한 날과 앱에 기록하는 날이 같으리란 법이 없다.
+  /// 며칠 지나서 넣는 일이 흔한데, 예전엔 무조건 오늘로 박혀서 고칠 방법도
+  /// 없었다. [accessEndsAt] 이후에는 이용 권한도 끝난다.
+  Future<void> cancel(
+    String id, {
+    DateTime? canceledAt,
+    DateTime? accessEndsAt,
+  }) => _mutate(
     (current) => [
       for (final s in current)
         if (s.id == id)
           s.copyWith(
-            canceledAt: DateTime.now(),
-            accessEndsAt: accessEndsAt ?? s.accessValidUntil,
+            canceledAt: () => canceledAt ?? DateTime.now(),
+            accessEndsAt: () => accessEndsAt ?? s.accessValidUntil,
           )
+        else
+          s,
+    ],
+  );
+
+  /// 요금제를 바꾼다. 금액과 결제 주기가 함께 달라질 수 있다.
+  ///
+  /// 주기를 [PricePoint] 에 같이 남기는 게 핵심이다. 구독당 주기를 하나만
+  /// 들고 있으면 월간에서 연간으로 갈아탔을 때 과거 결제까지 연간으로 다시
+  /// 세어서, 2년간 매달 낸 24번이 3번으로 줄어든다.
+  ///
+  /// [effectiveFrom] 이 이미 있는 항목과 같은 날이면 그 항목을 덮어쓴다.
+  Future<void> changePlan(
+    String id, {
+    required Money price,
+    required BillingCycle cycle,
+    required DateTime effectiveFrom,
+    String? memo,
+  }) => _mutate(
+    (current) => [
+      for (final s in current)
+        if (s.id == id)
+          s.copyWith(
+            cycle: cycle,
+            priceHistory: [
+              ...s.priceHistory.where(
+                (p) => !_sameDay(p.effectiveFrom, effectiveFrom),
+              ),
+              PricePoint(
+                effectiveFrom: effectiveFrom,
+                amount: price,
+                cycle: cycle,
+              ),
+            ],
+            // 요금제 이름을 안 주면 메모는 건드리지 않는다.
+            memo: memo == null ? null : () => memo,
+          )
+        else
+          s,
+    ],
+  );
+
+  /// 이미 해지된 구독의 해지일만 고친다. 잘못 누른 날짜를 바로잡는 용도다.
+  Future<void> setCanceledAt(String id, DateTime canceledAt) => _mutate(
+    (current) => [
+      for (final s in current)
+        if (s.id == id && !s.isActive)
+          s.copyWith(canceledAt: () => canceledAt)
         else
           s,
     ],
@@ -103,34 +160,19 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
   Future<void> setBillingAnchor(String id, DateTime? anchor) => _mutate(
     (current) => [
       for (final s in current)
-        if (s.id == id)
-          Subscription(
-            id: s.id,
-            serviceId: s.serviceId,
-            name: s.name,
-            iconUrl: s.iconUrl,
-            brandColorValue: s.brandColorValue,
-            cycle: s.cycle,
-            priceHistory: s.priceHistory,
-            startedAt: s.startedAt,
-            // copyWith 로는 null 로 되돌릴 수 없어서 직접 만든다
-            billingAnchor: anchor,
-            canceledAt: s.canceledAt,
-            accessEndsAt: s.accessEndsAt,
-            paymentMethod: s.paymentMethod,
-            credentialId: s.credentialId,
-            memo: s.memo,
-            reminderDaysBefore: s.reminderDaysBefore,
-          )
-        else
-          s,
+        if (s.id == id) s.copyWith(billingAnchor: () => anchor) else s,
     ],
   );
 
+  /// 결제 수단 메모. null 을 주면 지운다.
+  ///
+  /// 예전엔 null 을 넘겨도 안 지워졌다 — copyWith 가 null 을 "안 바꿈"으로
+  /// 읽었기 때문이다. 화면에는 "비워두면 등록하지 않은 것으로 둬요"라고
+  /// 적혀 있었는데 실제로는 옛 값이 그대로 남았다.
   Future<void> setPaymentMethod(String id, String? paymentMethod) => _mutate(
     (current) => [
       for (final s in current)
-        if (s.id == id) s.copyWith(paymentMethod: paymentMethod) else s,
+        if (s.id == id) s.copyWith(paymentMethod: () => paymentMethod) else s,
     ],
   );
 
@@ -138,13 +180,7 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
   Future<void> setReminderDays(String id, List<int>? days) => _mutate(
     (current) => [
       for (final s in current)
-        if (s.id == id)
-          s.copyWith(
-            reminderDaysBefore: days,
-            clearReminders: days == null,
-          )
-        else
-          s,
+        if (s.id == id) s.copyWith(reminderDaysBefore: () => days) else s,
     ],
   );
 
@@ -182,8 +218,7 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
             s.copyWith(
               pastPeriods: past,
               startedAt: current.startedAt,
-              canceledAt: current.endedAt,
-              clearCanceledAt: current.endedAt == null,
+              canceledAt: () => current.endedAt,
             )
           else
             s,
@@ -214,14 +249,18 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
               ),
             ],
             startedAt: startedAt,
-            clearCanceledAt: true,
+            canceledAt: () => null,
             priceHistory: price == null
                 ? s.priceHistory
                 : [
                     ...s.priceHistory.where(
                       (p) => !_sameDay(p.effectiveFrom, startedAt),
                     ),
-                    PricePoint(effectiveFrom: startedAt, amount: price),
+                    PricePoint(
+                      effectiveFrom: startedAt,
+                      amount: price,
+                      cycle: s.cycle,
+                    ),
                   ],
           )
         else

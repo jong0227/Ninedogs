@@ -11,6 +11,7 @@ import '../../data/models/subscription.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/krw_amount_text.dart';
 import '../../widgets/service_icon.dart';
+import '../edit/cancel_or_change_sheet.dart';
 import '../edit/period_editor.dart';
 import '../edit/price_history_editor.dart';
 import '../edit/quick_edits.dart';
@@ -211,6 +212,9 @@ class SubscriptionDetailScreen extends ConsumerWidget {
             EditableInfoTile(
               label: '해지일',
               value: formatDate(subscription.canceledAt!),
+              // 예전엔 onTap 이 없어서, 다른 줄과 똑같이 생겼는데 눌러도
+              // 아무 일이 없었다. 날짜를 잘못 넣으면 고칠 길이 없었다.
+              onTap: () => showCanceledAtEditor(context, ref, subscription),
             ),
 
           // 끊었다 다시 구독한 기록. 직접 넣고 고치고 지울 수 있어야 해서
@@ -225,14 +229,16 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                 children: [
                   if (subscription.isActive)
                     TextButton.icon(
-                      onPressed: () => ref
-                          .read(subscriptionsProvider.notifier)
-                          .cancel(subscription.id),
+                      // 바로 해지하지 않고 먼저 묻는다. 요금제만 바꾼 사람이
+                      // 여기를 눌러 구독이 끊긴 것으로 기록되면, 이후 결제가
+                      // 통계에서 통째로 빠진다.
+                      onPressed: () =>
+                          showCancelOrChangeSheet(context, ref, subscription),
                       icon: const Icon(
-                        Icons.pause_circle_outline,
+                        Icons.more_horiz,
                         size: 18,
                       ),
-                      label: const Text('해지 처리'),
+                      label: const Text('해지·변경'),
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.negative,
                       ),

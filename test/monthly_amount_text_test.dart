@@ -6,7 +6,7 @@ import 'package:ninedogs/data/models/money.dart';
 import 'package:ninedogs/data/models/subscription.dart';
 import 'package:ninedogs/widgets/monthly_amount_text.dart';
 
-Subscription build(BillingCycle cycle, Money price) => Subscription(
+Subscription build(BillingCycle cycle, Money price) => Subscription.create(
   id: 'test',
   name: '테스트',
   cycle: cycle,

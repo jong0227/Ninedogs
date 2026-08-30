@@ -49,7 +49,7 @@ class FakeCredentialRepository implements CredentialRepository {
   Stream<List<StoredCredential>>? watch() => null;
 }
 
-Subscription sub(String id, {int price = 10000}) => Subscription(
+Subscription sub(String id, {int price = 10000}) => Subscription.create(
   id: id,
   name: id,
   cycle: BillingCycle.monthly,
