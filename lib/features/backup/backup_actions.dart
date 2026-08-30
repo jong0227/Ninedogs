@@ -166,7 +166,10 @@ Future<void> confirmAndImport(
   if (!context.mounted) return;
 
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(result.summary), duration: const Duration(seconds: 3)),
+    SnackBar(
+      content: Text(result.summary),
+      duration: const Duration(seconds: 3),
+    ),
   );
 
   final skipped = result.credentialsSkippedReason;

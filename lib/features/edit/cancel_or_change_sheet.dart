@@ -169,11 +169,7 @@ Future<void> showPlanChangeSheet(
 }
 
 class _PlanResult {
-  const _PlanResult({
-    required this.amount,
-    required this.cycle,
-    this.planName,
-  });
+  const _PlanResult({required this.amount, required this.cycle, this.planName});
 
   final Money amount;
   final BillingCycle cycle;
@@ -336,11 +332,7 @@ class _PlanChangeBodyState extends State<_PlanChangeBody> {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
+  const _Chip({required this.label, required this.active, required this.onTap});
 
   final String label;
   final bool active;

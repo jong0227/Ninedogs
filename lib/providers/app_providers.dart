@@ -46,9 +46,7 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
   @override
   ThemeMode build() {
     final saved = ref.watch(sharedPreferencesProvider).getString(_key);
-    return ThemeMode.values
-        .where((mode) => mode.name == saved)
-        .firstOrNull ??
+    return ThemeMode.values.where((mode) => mode.name == saved).firstOrNull ??
         ThemeMode.dark;
   }
 
@@ -103,7 +101,9 @@ final appVersionProvider = FutureProvider<String>(
 
 final updateCheckerProvider = Provider<UpdateChecker>((ref) => UpdateChecker());
 
-final apkInstallerProvider = Provider<ApkInstaller>((ref) => const ApkInstaller());
+final apkInstallerProvider = Provider<ApkInstaller>(
+  (ref) => const ApkInstaller(),
+);
 
 final exchangeRateServiceProvider = Provider<ExchangeRateService>(
   (ref) => ExchangeRateService(),
@@ -117,10 +117,9 @@ final exchangeRateProvider = FutureProvider<double>(
       .rate(ref.watch(sharedPreferencesProvider)),
 );
 
-final exchangeRateHistoryServiceProvider =
-    Provider<ExchangeRateHistoryService>(
-      (ref) => ExchangeRateHistoryService(),
-    );
+final exchangeRateHistoryServiceProvider = Provider<ExchangeRateHistoryService>(
+  (ref) => ExchangeRateHistoryService(),
+);
 
 /// 날짜별 USD -> KRW 환율 표.
 ///
@@ -153,11 +152,7 @@ final iconUrlProvider = FutureProvider.family<String?, IconRequest>((
 ) {
   return ref
       .watch(iconResolverProvider)
-      .resolve(
-        request.serviceId,
-        request.searchTerm,
-        domain: request.domain,
-      );
+      .resolve(request.serviceId, request.searchTerm, domain: request.domain);
 });
 
 /// 아이콘 가장자리 색. 원으로 자를 때 바깥을 이 색으로 채워

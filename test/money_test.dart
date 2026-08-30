@@ -81,4 +81,43 @@ void main() {
       });
     });
   });
+
+  group('통화가 섞이면 드러나게 실패한다', () {
+    // 예전엔 assert 라서 릴리즈 빌드에서 검사가 통째로 사라졌다. 개발
+    // 중에는 크래시로 잡히니 안전해 보였지만, 정작 사용자 기기에서는
+    // 13,500원과 $1.00 를 더해 13,501원을 아무 경고 없이 내놓았다.
+    test('다른 통화끼리 더하면 던진다', () {
+      expect(
+        () => const Money(13500) + const Money(100, currency: 'USD'),
+        throwsA(isA<CurrencyMismatchError>()),
+      );
+    });
+
+    test('다른 통화끼리 빼도 던진다', () {
+      expect(
+        () => const Money(13500) - const Money(100, currency: 'USD'),
+        throwsA(isA<CurrencyMismatchError>()),
+      );
+    });
+
+    test('다른 통화끼리 비교해도 던진다', () {
+      expect(
+        () => const Money(13500).compareTo(const Money(100, currency: 'USD')),
+        throwsA(isA<CurrencyMismatchError>()),
+      );
+    });
+
+    test('어느 통화끼리 부딪혔는지 알려준다', () {
+      expect(
+        () => const Money(1) + const Money(1, currency: 'USD'),
+        throwsA(
+          isA<CurrencyMismatchError>().having(
+            (e) => e.toString(),
+            'toString',
+            allOf(contains('KRW'), contains('USD')),
+          ),
+        ),
+      );
+    });
+  });
 }

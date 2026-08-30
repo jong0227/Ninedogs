@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 
+import '../../core/diagnostics.dart';
+
 /// 지문·얼굴로 금고를 여는 통로.
 ///
 /// 마스터 암호로 한 번 연 뒤, 그때 만들어진 키를 기기 보안 저장소
@@ -30,7 +32,8 @@ class BiometricGate {
     try {
       if (!await _auth.isDeviceSupported()) return false;
       return (await _auth.getAvailableBiometrics()).isNotEmpty;
-    } catch (_) {
+    } catch (error) {
+      logIgnored('생체인증 지원 여부를 확인하지 못했다', error);
       return false;
     }
   }
@@ -39,7 +42,8 @@ class BiometricGate {
   Future<bool> isEnabled() async {
     try {
       return await _storage.read(key: _keyName) != null;
-    } catch (_) {
+    } catch (error) {
+      logIgnored('등록된 생체정보를 확인하지 못했다', error);
       return false;
     }
   }
@@ -68,7 +72,8 @@ class BiometricGate {
       if (!passed) return null;
 
       return base64Decode(stored);
-    } catch (_) {
+    } catch (error) {
+      logIgnored('생체인증에 실패했다', error);
       return null;
     }
   }

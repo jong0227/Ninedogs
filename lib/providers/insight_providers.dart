@@ -126,11 +126,12 @@ List<Insight> _duplicates(
     // 비교해야 통화가 섞인 중복(한쪽은 원화, 한쪽은 달러)도 제대로 걸러진다.
     // 환산할 수 없는 건(환율 없음) 더하지 않고 건너뛴다 — 통화가 다른
     // Money 끼리 더하면 assert 로 죽는다.
-    final costs = group
-        .map((s) => _krwOrNull(s.monthlyCost, usdToKrwRate))
-        .whereType<Money>()
-        .toList()
-      ..sort((a, b) => a.minor.compareTo(b.minor));
+    final costs =
+        group
+            .map((s) => _krwOrNull(s.monthlyCost, usdToKrwRate))
+            .whereType<Money>()
+            .toList()
+          ..sort((a, b) => a.minor.compareTo(b.minor));
     if (costs.length < 2) continue; // 환산 못 한 게 많아 비교가 안 되면 건너뛴다
     var wasted = Money.zero();
     for (final cost in costs.skip(1)) {
@@ -141,7 +142,8 @@ List<Insight> _duplicates(
       Insight(
         kind: InsightKind.duplicate,
         title: '${group.first.name}을(를) ${group.length}건 결제 중이에요',
-        body: '하나로 합치면 매달 ${wasted.format()}, '
+        body:
+            '하나로 합치면 매달 ${wasted.format()}, '
             '1년이면 ${(wasted * 12).format()} 아껴요.',
         subscriptionId: group.first.id,
       ),
@@ -175,7 +177,8 @@ List<Insight> _priceIncreases(
       Insight(
         kind: InsightKind.priceIncrease,
         title: '${subscription.name} 요금이 $percent% 올랐어요',
-        body: '${_display(first, usdToKrwRate).format()} → '
+        body:
+            '${_display(first, usdToKrwRate).format()} → '
             '${_display(now, usdToKrwRate).format()} '
             '(${subscription.priceChanges.length}번 인상)',
         subscriptionId: subscription.id,

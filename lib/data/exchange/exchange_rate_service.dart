@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/diagnostics.dart';
+
 /// 달러로 등록한 구독을 원화로 환산해 보여줄 때 쓰는 환율(USD -> KRW).
 ///
 /// 통계·합계는 통화가 하나로 통일돼 있어야 의미가 있다. 실시간 정확도보다
@@ -11,7 +13,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// 빠지게 된다. 그래서 실패해도 마지막으로 받아둔 값, 그마저 없으면
 /// 대략값으로 대체해서 **null을 돌려주지 않는다.**
 class ExchangeRateService {
-  ExchangeRateService({http.Client? client}) : _client = client ?? http.Client();
+  ExchangeRateService({http.Client? client})
+    : _client = client ?? http.Client();
 
   final http.Client _client;
 
@@ -61,7 +64,8 @@ class ExchangeRateService {
       final rates = json['rates'] as Map<String, Object?>?;
       final krw = rates?['KRW'];
       return krw is num ? krw.toDouble() : null;
-    } catch (_) {
+    } catch (error) {
+      logIgnored('환율을 받지 못했다', error);
       return null;
     }
   }

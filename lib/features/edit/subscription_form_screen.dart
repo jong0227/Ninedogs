@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import 'form_fields.dart';
 import '../../core/format/formatters.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -111,7 +112,10 @@ class _SubscriptionFormScreenState
 
   /// 편집 화면을 열었을 때 지금 쓰는 요금제가 어느 것인지 짚어준다.
   /// 메모에 요금제 이름을 남겨두므로 그것부터 보고, 없으면 금액으로 찾는다.
-  static CatalogPlan? _matchPlan(CatalogService? service, Subscription current) {
+  static CatalogPlan? _matchPlan(
+    CatalogService? service,
+    Subscription current,
+  ) {
     if (service == null) return null;
 
     for (final plan in service.plans) {
@@ -134,8 +138,7 @@ class _SubscriptionFormScreenState
         : major.toStringAsFixed(2);
   }
 
-  Money? get _enteredPrice =>
-      Money.tryParse(_amount.text, currency: _currency);
+  Money? get _enteredPrice => Money.tryParse(_amount.text, currency: _currency);
 
   // ── 저장 ────────────────────────────────────────────────
 
@@ -265,37 +268,37 @@ class _SubscriptionFormScreenState
     ];
   }
 
-  Future<bool?> _confirmCurrencyReset(Subscription existing) => showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('통화를 바꿀까요?'),
-      content: Text(
-        '${existing.currency} 로 쌓인 가격 이력 ${existing.priceHistory.length}건을 '
-        '지우고 $_currency 로 다시 시작해요. 두 통화를 섞으면 누적 지출이 '
-        '엉뚱하게 계산돼서, 이력을 함께 정리해야 해요.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, false),
-          child: const Text('취소'),
+  Future<bool?> _confirmCurrencyReset(Subscription existing) =>
+      showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('통화를 바꿀까요?'),
+          content: Text(
+            '${existing.currency} 로 쌓인 가격 이력 ${existing.priceHistory.length}건을 '
+            '지우고 $_currency 로 다시 시작해요. 두 통화를 섞으면 누적 지출이 '
+            '엉뚱하게 계산돼서, 이력을 함께 정리해야 해요.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('바꾸기'),
+            ),
+          ],
         ),
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, true),
-          child: const Text('바꾸기'),
-        ),
-      ],
-    ),
-  );
+      );
 
-  Future<DateTime?> _pickEffectiveDate({
-    String helpText = '언제부터 바뀐 금액인가요?',
-  }) => pickDate(
-    context,
-    initialDate: DateTime.now(),
-    firstDate: _startedAt,
-    lastDate: DateTime.now(),
-    helpText: helpText,
-  );
+  Future<DateTime?> _pickEffectiveDate({String helpText = '언제부터 바뀐 금액인가요?'}) =>
+      pickDate(
+        context,
+        initialDate: DateTime.now(),
+        firstDate: _startedAt,
+        lastDate: DateTime.now(),
+        helpText: helpText,
+      );
 
   Future<void> _pickDate({
     required DateTime initial,
@@ -319,8 +322,14 @@ class _SubscriptionFormScreenState
   /// 카탈로그에 없는 서비스의 대체 타일 색. 이름이 같으면 늘 같은 색이 나온다.
   static int _colorForName(String name) {
     const palette = [
-      0xFF5B6ABF, 0xFF3FB68B, 0xFFD9705A, 0xFF8E6BBF,
-      0xFF3D8FB5, 0xFFC2913C, 0xFFB5527E, 0xFF4F9E5C,
+      0xFF5B6ABF,
+      0xFF3FB68B,
+      0xFFD9705A,
+      0xFF8E6BBF,
+      0xFF3D8FB5,
+      0xFFC2913C,
+      0xFFB5527E,
+      0xFF4F9E5C,
     ];
     var hash = 0;
     for (final unit in name.trim().codeUnits) {
@@ -375,13 +384,13 @@ class _SubscriptionFormScreenState
           const SizedBox(height: AppSpacing.xl),
 
           if (plans.length > 1) ...[
-            const _FieldLabel('요금제'),
+            const FieldLabel('요금제'),
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               children: [
                 for (final plan in plans)
-                  _ChoiceChip(
+                  FormChip(
                     label: plan.name,
                     active: plan == _selectedPlan,
                     onTap: () => setState(() {
@@ -402,7 +411,7 @@ class _SubscriptionFormScreenState
             const SizedBox(height: AppSpacing.xl),
           ],
 
-          const _FieldLabel('금액'),
+          const FieldLabel('금액'),
           Row(
             children: [
               Expanded(
@@ -422,7 +431,7 @@ class _SubscriptionFormScreenState
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
-              _CurrencyToggle(
+              CurrencyToggle(
                 currency: _currency,
                 onChanged: (value) => setState(() => _currency = value),
               ),
@@ -430,13 +439,13 @@ class _SubscriptionFormScreenState
           ),
           const SizedBox(height: AppSpacing.xl),
 
-          const _FieldLabel('결제 주기'),
+          const FieldLabel('결제 주기'),
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: [
               for (final cycle in BillingCycle.values)
-                _ChoiceChip(
+                FormChip(
                   label: cycle.label,
                   active: cycle == _cycle,
                   onTap: () => setState(() => _cycle = cycle),
@@ -445,8 +454,8 @@ class _SubscriptionFormScreenState
           ),
           const SizedBox(height: AppSpacing.xl),
 
-          const _FieldLabel('구독 시작일'),
-          _DateRow(
+          const FieldLabel('구독 시작일'),
+          DateRow(
             value: formatDate(_startedAt),
             hint: formatDuration(_startedAt),
             onTap: () => _pickDate(
@@ -485,7 +494,7 @@ class _SubscriptionFormScreenState
             },
           ),
           if (_trialEndsAt != null)
-            _DateRow(
+            DateRow(
               value: formatDate(_trialEndsAt!),
               hint: '무료 체험 종료 · 이날 첫 결제',
               onTap: () => _pickDate(
@@ -521,7 +530,7 @@ class _SubscriptionFormScreenState
             },
           ),
           if (_billingAnchor != null)
-            _DateRow(
+            DateRow(
               value: formatDate(_billingAnchor!),
               hint: '기준 결제일',
               onTap: () => _pickDate(
@@ -532,14 +541,14 @@ class _SubscriptionFormScreenState
             ),
           const SizedBox(height: AppSpacing.xl),
 
-          const _FieldLabel('결제 수단'),
+          const FieldLabel('결제 수단'),
           TextField(
             controller: _paymentMethod,
             decoration: const InputDecoration(hintText: '예: 신한카드 1234'),
           ),
           const SizedBox(height: AppSpacing.xl),
 
-          const _FieldLabel('메모'),
+          const FieldLabel('메모'),
           TextField(
             controller: _memo,
             decoration: const InputDecoration(hintText: '요금제 이름 등'),
@@ -551,149 +560,6 @@ class _SubscriptionFormScreenState
             child: Text(widget.isEditing ? '저장' : '추가'),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-    child: Text(text, style: Theme.of(context).textTheme.labelMedium),
-  );
-}
-
-class _DateRow extends StatelessWidget {
-  const _DateRow({required this.value, required this.hint, required this.onTap});
-
-  final String value;
-  final String hint;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surface,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: theme.dividerColor),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.event_outlined, size: 18),
-              const SizedBox(width: AppSpacing.md),
-              Text(value, style: theme.textTheme.bodyMedium),
-              const Spacer(),
-              Text(hint, style: theme.textTheme.labelMedium),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CurrencyToggle extends StatelessWidget {
-  const _CurrencyToggle({required this.currency, required this.onChanged});
-
-  final String currency;
-  final ValueChanged<String> onChanged;
-
-  static const _options = [Money.krw, 'USD'];
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final option in _options)
-            GestureDetector(
-              onTap: () => onChanged(option),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.lg,
-                ),
-                decoration: BoxDecoration(
-                  color: option == currency
-                      ? AppColors.accent.withValues(alpha: 0.15)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadius.md - 1),
-                ),
-                child: Text(
-                  option,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: option == currency
-                        ? AppColors.accent
-                        : theme.textTheme.labelMedium?.color,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChoiceChip extends StatelessWidget {
-  const _ChoiceChip({
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: active
-              ? AppColors.accent.withValues(alpha: 0.15)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(
-            color: active ? AppColors.accent : theme.dividerColor,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: active ? AppColors.accent : theme.colorScheme.onSurface,
-          ),
-        ),
       ),
     );
   }

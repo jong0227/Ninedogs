@@ -4,6 +4,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../core/diagnostics.dart';
 import '../models/subscription.dart';
 
 /// 알림을 받을 수 있는 시점들. 이 셋 중에서 고른다.
@@ -43,7 +44,8 @@ class NotificationService {
     try {
       final zone = await FlutterTimezone.getLocalTimezone();
       tz.setLocalLocation(tz.getLocation(zone.identifier));
-    } catch (_) {
+    } catch (error) {
+      logIgnored('기기 시간대를 읽지 못했다', error);
       // 기기 시간대를 못 읽으면 서울로 둔다. 알림이 몇 시간 어긋날 뿐
       // 아예 안 오는 것보다는 낫다.
       tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
@@ -85,7 +87,11 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin
         >();
-    return await ios?.requestPermissions(alert: true, badge: true, sound: true) ??
+    return await ios?.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        ) ??
         true;
   }
 

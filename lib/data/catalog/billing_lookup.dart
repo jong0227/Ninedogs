@@ -104,8 +104,7 @@ const billingLookups = <String, BillingLookup>{
 };
 
 /// 앱스토어·구글플레이로 결제한 경우는 서비스와 무관하게 여기서 본다.
-const appStoreSubscriptionsUrl =
-    'https://apps.apple.com/account/subscriptions';
+const appStoreSubscriptionsUrl = 'https://apps.apple.com/account/subscriptions';
 const playStoreSubscriptionsUrl =
     'https://play.google.com/store/account/subscriptions';
 

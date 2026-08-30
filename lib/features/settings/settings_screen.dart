@@ -9,12 +9,13 @@ import '../../data/update/update_checker.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/notification_providers.dart';
 import '../../providers/reset_providers.dart';
-import '../../providers/subscription_providers.dart';
 import '../../providers/sync_providers.dart';
-import '../../providers/usage_providers.dart';
 import '../../providers/vault_providers.dart';
 import '../../widgets/ninedogs_app_bar.dart';
 import '../backup/backup_actions.dart';
+import '../backup/restore_sheet.dart';
+import 'reset_confirm_dialog.dart';
+import 'usage_tracking_tile.dart';
 import '../notifications/reminder_picker.dart';
 import '../sync/sync_screen.dart';
 import '../vault/vault_sheets.dart';
@@ -83,12 +84,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
 
     try {
-      await ref.read(apkInstallerProvider).downloadAndInstall(
-        apkUrl,
-        onProgress: (p) {
-          if (mounted) setState(() => _installProgress = p);
-        },
-      );
+      await ref
+          .read(apkInstallerProvider)
+          .downloadAndInstall(
+            apkUrl,
+            onProgress: (p) {
+              if (mounted) setState(() => _installProgress = p);
+            },
+          );
     } catch (e) {
       if (mounted) {
         setState(() => _installError = '설치를 시작하지 못했어요. 잠시 뒤 다시 시도해주세요');
@@ -104,9 +107,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('브라우저를 열지 못했어요')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('브라우저를 열지 못했어요')));
     }
   }
 
@@ -192,7 +195,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const SizedBox(height: AppSpacing.xl),
           _SectionTitle('안 쓰는 구독 찾기'),
-          const _UsageTrackingTile(),
+          const UsageTrackingTile(),
 
           const SizedBox(height: AppSpacing.xl),
           _SectionTitle('화면'),
@@ -213,9 +216,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: () async {
                 final changed = await showVaultChangePasswordSheet(context);
                 if (changed && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('마스터 암호를 바꿨어요')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('마스터 암호를 바꿨어요')));
                 }
               },
             ),
@@ -257,9 +260,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 trailing: const Icon(Icons.lock_outline),
                 onTap: () {
                   ref.read(vaultProvider.notifier).lock();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('금고를 잠갔어요')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('금고를 잠갔어요')));
                 },
               ),
           ],
@@ -268,9 +271,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SectionTitle('가족 연결'),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(
-              ref.watch(syncEnabledProvider) ? '연결됨' : '배우자와 함께 보기',
-            ),
+            title: Text(ref.watch(syncEnabledProvider) ? '연결됨' : '배우자와 함께 보기'),
             subtitle: Text(
               ref.watch(syncEnabledProvider)
                   ? '한쪽에서 고치면 다른 쪽에도 바로 반영돼요'
@@ -281,13 +282,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ref.watch(syncEnabledProvider)
                   ? Icons.link
                   : Icons.person_add_outlined,
-              color: ref.watch(syncEnabledProvider)
-                  ? AppColors.positive
-                  : null,
+              color: ref.watch(syncEnabledProvider) ? AppColors.positive : null,
             ),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SyncScreen()),
-            ),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SyncScreen())),
           ),
 
           const SizedBox(height: AppSpacing.xl),
@@ -301,6 +300,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             trailing: const Icon(Icons.ios_share),
             onTap: () => showExportSheet(context, ref),
+          ),
+          // 손으로 넣은 기록이라 날아가면 되살릴 방법이 없다. 백업 파일을
+          // 미리 만들어두지 않았어도 최근 몇 번은 되돌릴 수 있게 한다.
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('되돌리기'),
+            subtitle: Text(
+              '실수로 지웠거나 잘못 고쳤을 때 최근 상태로 돌아가요',
+              style: theme.textTheme.labelMedium,
+            ),
+            trailing: const Icon(Icons.history),
+            onTap: () => showRestoreSheet(context, ref),
           ),
           const SizedBox(height: AppSpacing.sm),
           const ImportHowTo(),
@@ -334,7 +345,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final confirmed =
         await showDialog<bool>(
           context: context,
-          builder: (_) => const _ResetConfirmDialog(),
+          builder: (_) => const ResetConfirmDialog(),
         ) ??
         false;
 
@@ -347,249 +358,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // 지워진 구독의 상세 화면 같은 게 남지 않는다.
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
-}
-
-/// '안 쓰는 구독 찾기' 스위치와 그 한계 안내.
-///
-/// 이 기능은 폰 사용 기록만 본다. TV·PC 로 보는 건 잡히지 않으므로
-/// 켜기 전에 그 점을 분명히 알려야 한다. 안 그러면 매일 TV 로 보는 넷플릭스를
-/// "안 쓴다"고 오해하게 된다.
-class _UsageTrackingTile extends ConsumerWidget {
-  const _UsageTrackingTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final enabled = ref.watch(usageTrackingProvider);
-    final granted = ref.watch(usagePermissionProvider).value ?? false;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('한동안 안 연 구독 알려주기'),
-          subtitle: Text(
-            enabled
-                ? (granted ? '폰에서 30일 넘게 안 연 구독을 통계에 표시해요' : '권한이 꺼져 있어요')
-                : '폰 사용 기록을 보고 안 쓰는 구독을 찾아드려요',
-            style: theme.textTheme.labelMedium,
-          ),
-          value: enabled,
-          activeThumbColor: AppColors.accent,
-          onChanged: (on) async {
-            await ref.read(usageTrackingProvider.notifier).set(on);
-            if (!on) return;
-
-            // 켰는데 권한이 없으면 설정으로 데려다준다.
-            final has = await ref.read(usageServiceProvider).hasPermission();
-            if (has || !context.mounted) {
-              ref.invalidate(usagePermissionProvider);
-              return;
-            }
-            final go = await _explain(context);
-            if (go) await ref.read(usageServiceProvider).openSettings();
-            ref.invalidate(usagePermissionProvider);
-          },
-        ),
-        if (enabled && !granted)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.sm),
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                await ref.read(usageServiceProvider).openSettings();
-                ref.invalidate(usagePermissionProvider);
-              },
-              icon: const Icon(Icons.open_in_new, size: 18),
-              label: const Text('설정에서 사용 정보 접근 켜기'),
-            ),
-          ),
-        if (enabled) ...[
-          const SizedBox(height: AppSpacing.sm),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 16,
-                  color: theme.textTheme.labelMedium?.color,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    'TV나 PC로 보는 건 알 수 없어요. 폰에서 안 열었다고 '
-                    '안 쓰는 건 아니니 참고만 해주세요.',
-                    style: theme.textTheme.labelMedium?.copyWith(height: 1.35),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  /// 권한이 왜 필요하고 무엇을 못 보는지 알린 뒤 설정으로 보낼지 묻는다.
-  static Future<bool> _explain(BuildContext context) async {
-    final theme = Theme.of(context);
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: const Icon(
-          Icons.history_toggle_off,
-          color: AppColors.accent,
-          size: 30,
-        ),
-        title: const Text('사용 정보 접근이 필요해요'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '구독 서비스 앱을 마지막으로 언제 열었는지 보려면 안드로이드 '
-              '설정에서 직접 켜야 해요.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              '설정 → 특별한 앱 접근 → 사용 정보 접근 → Ninedogs',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: AppColors.accent,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              '읽는 건 앱을 마지막으로 연 시각뿐이에요. 무엇을 봤는지는 '
-              '알 수 없고, 이 기기 밖으로 나가지 않아요.',
-              style: theme.textTheme.labelMedium,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            style: TextButton.styleFrom(
-              foregroundColor: theme.textTheme.labelMedium?.color,
-            ),
-            child: const Text('나중에'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('설정 열기'),
-          ),
-        ],
-      ),
-    );
-
-    return result ?? false;
-  }
-}
-
-class _ResetConfirmDialog extends ConsumerStatefulWidget {
-  const _ResetConfirmDialog();
-
-  @override
-  ConsumerState<_ResetConfirmDialog> createState() =>
-      _ResetConfirmDialogState();
-}
-
-class _ResetConfirmDialogState extends ConsumerState<_ResetConfirmDialog> {
-  final _input = TextEditingController();
-
-  /// 손이 미끄러져서 눌리는 일이 없도록 직접 입력하게 하는 문구.
-  static const _phrase = '초기화';
-
-  bool get _matches => _input.text.trim() == _phrase;
-
-  @override
-  void dispose() {
-    _input.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final subscriptions = ref.watch(allSubscriptionsProvider);
-    final credentialCount = ref
-        .watch(storedCredentialsProvider)
-        .value
-        ?.length ??
-        0;
-
-    return AlertDialog(
-      title: const Text('모든 데이터를 지울까요?'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '아래 항목이 모두 사라지고 되돌릴 수 없어요.',
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _Bullet('구독 ${subscriptions.length}개와 지금까지의 누적 지출 기록'),
-          if (credentialCount > 0) _Bullet('저장한 계정 정보 $credentialCount개'),
-          const _Bullet('마스터 암호 설정'),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            "계속하려면 아래에 '$_phrase'라고 입력해주세요.",
-            style: theme.textTheme.labelMedium,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          TextField(
-            controller: _input,
-            autocorrect: false,
-            decoration: const InputDecoration(hintText: _phrase),
-            onChanged: (_) => setState(() {}),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('취소'),
-        ),
-        TextButton(
-          onPressed: _matches ? () => Navigator.pop(context, true) : null,
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.negative,
-            disabledForegroundColor: theme.disabledColor,
-          ),
-          child: const Text('영구 삭제'),
-        ),
-      ],
-    );
-  }
-}
-
-class _Bullet extends StatelessWidget {
-  const _Bullet(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('· '),
-        Expanded(
-          child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
-        ),
-      ],
-    ),
-  );
 }
 
 class _ThemeModePicker extends ConsumerWidget {
@@ -691,7 +459,8 @@ class _UpdateResultCard extends StatelessWidget {
                   ),
                 ],
               ),
-              if (release.notes != null && release.notes!.trim().isNotEmpty) ...[
+              if (release.notes != null &&
+                  release.notes!.trim().isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   release.notes!.trim(),
@@ -769,9 +538,7 @@ class _UpdateResultCard extends StatelessWidget {
                 color: theme.textTheme.labelMedium?.color,
               ),
               const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(reason, style: theme.textTheme.bodyMedium),
-              ),
+              Expanded(child: Text(reason, style: theme.textTheme.bodyMedium)),
             ],
           ),
         },

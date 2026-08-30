@@ -151,9 +151,7 @@ class _AppDatePickerDialogState extends State<_AppDatePickerDialog> {
             _header(theme),
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: switch (_mode) {
                   _Mode.day => _dayBody(theme),
                   _Mode.yearMonth => _yearMonthBody(theme),
@@ -348,8 +346,7 @@ class _AppDatePickerDialogState extends State<_AppDatePickerDialog> {
               _first,
               _last,
             );
-            final selected =
-                _month.year == _year && _month.month == month;
+            final selected = _month.year == _year && _month.month == month;
 
             return _MonthCell(
               label: '$month월',

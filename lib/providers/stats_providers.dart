@@ -68,7 +68,6 @@ final categoryLifetimeProvider = Provider<List<CategorySpend>>((ref) {
   );
 });
 
-
 /// 구독 목록을 분야별로 묶는다.
 ///
 /// 예전엔 통화가 섞이면 "가장 많이 쓰는 통화"만 남기고 나머지는 통째로

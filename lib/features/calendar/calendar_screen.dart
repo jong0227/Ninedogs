@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/theme/category_colors.dart';
+import '../../widgets/category_colors.dart';
 import '../../data/models/money.dart';
 import '../../data/models/subscription.dart';
 import '../../providers/app_providers.dart';

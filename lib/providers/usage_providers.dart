@@ -6,7 +6,9 @@ import '../data/usage/usage_service.dart';
 import 'app_providers.dart';
 import 'subscription_providers.dart';
 
-final usageServiceProvider = Provider<UsageService>((ref) => const UsageService());
+final usageServiceProvider = Provider<UsageService>(
+  (ref) => const UsageService(),
+);
 
 /// '안 쓰는 구독 찾기'를 켰는지. 기본은 꺼짐.
 ///
@@ -24,8 +26,9 @@ class UsageTrackingNotifier extends Notifier<bool> {
   }
 }
 
-final usageTrackingProvider =
-    NotifierProvider<UsageTrackingNotifier, bool>(UsageTrackingNotifier.new);
+final usageTrackingProvider = NotifierProvider<UsageTrackingNotifier, bool>(
+  UsageTrackingNotifier.new,
+);
 
 /// 사용 정보 접근 권한이 켜져 있는지.
 final usagePermissionProvider = FutureProvider<bool>(
@@ -62,30 +65,31 @@ final lastUsedProvider = FutureProvider<Map<String, DateTime>>((ref) async {
 ///
 /// **기록이 있는데 오래된 경우만** 담는다. 기록 자체가 없으면 TV·PC 로만
 /// 보는 것일 수 있어 판단하지 않는다.
-final unusedSubscriptionsProvider = Provider<List<({Subscription subscription, int days})>>((
-  ref,
-) {
-  final lastUsed = ref.watch(lastUsedProvider).value ?? const {};
-  if (lastUsed.isEmpty) return const [];
+final unusedSubscriptionsProvider =
+    Provider<List<({Subscription subscription, int days})>>((ref) {
+      final lastUsed = ref.watch(lastUsedProvider).value ?? const {};
+      if (lastUsed.isEmpty) return const [];
 
-  final now = DateTime.now();
-  final result = <({Subscription subscription, int days})>[];
+      final now = DateTime.now();
+      final result = <({Subscription subscription, int days})>[];
 
-  for (final subscription in ref.watch(activeSubscriptionsProvider)) {
-    final used = lastUsed[subscription.id];
-    if (used == null) continue;
+      for (final subscription in ref.watch(activeSubscriptionsProvider)) {
+        final used = lastUsed[subscription.id];
+        if (used == null) continue;
 
-    final days = DateTime(now.year, now.month, now.day)
-        .difference(DateTime(used.year, used.month, used.day))
-        .inDays;
-    if (days < _staleDays) continue;
+        final days = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).difference(DateTime(used.year, used.month, used.day)).inDays;
+        if (days < _staleDays) continue;
 
-    result.add((subscription: subscription, days: days));
-  }
+        result.add((subscription: subscription, days: days));
+      }
 
-  result.sort((a, b) => b.days.compareTo(a.days));
-  return result;
-});
+      result.sort((a, b) => b.days.compareTo(a.days));
+      return result;
+    });
 
 /// 이만큼 안 열었으면 한 번 짚어줄 만하다.
 const _staleDays = 30;

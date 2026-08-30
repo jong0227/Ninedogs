@@ -33,17 +33,18 @@ abstract final class AppTheme {
     required Color textPrimary,
     required Color textSecondary,
   }) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: AppColors.accent,
-      brightness: brightness,
-    ).copyWith(
-      primary: AppColors.accent,
-      onPrimary: AppColors.onAccent,
-      surface: surface,
-      onSurface: textPrimary,
-      outline: border,
-      error: AppColors.negative,
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColors.accent,
+          brightness: brightness,
+        ).copyWith(
+          primary: AppColors.accent,
+          onPrimary: AppColors.onAccent,
+          surface: surface,
+          onSurface: textPrimary,
+          outline: border,
+          error: AppColors.negative,
+        );
 
     final base = ThemeData(brightness: brightness, colorScheme: scheme);
 

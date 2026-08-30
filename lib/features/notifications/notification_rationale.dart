@@ -41,10 +41,7 @@ Future<bool> showNotificationRationale(BuildContext context) async {
             icon: Icons.phone_android_outlined,
             text: '알림은 이 기기에서만 만들어져요',
           ),
-          const _Point(
-            icon: Icons.block_outlined,
-            text: '광고나 마케팅 알림은 전혀 없어요',
-          ),
+          const _Point(icon: Icons.block_outlined, text: '광고나 마케팅 알림은 전혀 없어요'),
           const SizedBox(height: AppSpacing.md),
           Text(
             '다음 화면에서 "허용"을 눌러주세요. 나중에 설정에서 언제든 끌 수 있어요.',

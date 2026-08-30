@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
+import '../../core/diagnostics.dart';
+
 /// 아이콘 이미지의 **가장자리 색**을 뽑아낸다.
 ///
 /// 아이콘을 원으로 자를 때, 원을 이 색으로 먼저 칠하고 그 위에 아이콘 전체를
@@ -45,7 +47,8 @@ abstract final class IconPalette {
 
       if (data == null) return null;
       return _averageRing(data.buffer.asUint8List());
-    } catch (_) {
+    } catch (error) {
+      logIgnored('아이콘 색을 뽑지 못했다', error);
       return null;
     }
   }

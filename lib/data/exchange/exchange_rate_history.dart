@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/diagnostics.dart';
 import '../models/money.dart';
 
 /// 날짜별 USD→KRW 환율 표.
@@ -136,7 +137,8 @@ class ExchangeRateHistoryService {
     final from = _clampToEcbEpoch(earliest);
     final today = DateTime.now();
 
-    final missingStart = cached.earliest == null || from.isBefore(cached.earliest!);
+    final missingStart =
+        cached.earliest == null || from.isBefore(cached.earliest!);
     final syncedAt = prefs.getInt(_syncedAtKey);
     final staleTail =
         syncedAt == null ||
@@ -185,9 +187,9 @@ class ExchangeRateHistoryService {
     );
 
     try {
-      final response = await _client.get(uri).timeout(
-        const Duration(seconds: 12),
-      );
+      final response = await _client
+          .get(uri)
+          .timeout(const Duration(seconds: 12));
       if (response.statusCode != 200) return null;
 
       final json = jsonDecode(response.body) as Map<String, Object?>;
@@ -199,7 +201,8 @@ class ExchangeRateHistoryService {
           if ((entry.value as Map<String, Object?>?)?['KRW'] case final num v)
             entry.key: v.toDouble(),
       };
-    } catch (_) {
+    } catch (error) {
+      logIgnored('과거 환율을 받지 못했다', error);
       return null;
     }
   }

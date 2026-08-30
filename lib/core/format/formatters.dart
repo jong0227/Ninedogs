@@ -18,8 +18,7 @@ String formatDaysAway(int days) {
 /// 구독을 유지한 기간. 예: "1년 2개월째"
 String formatDuration(DateTime since, [DateTime? until]) {
   final end = until ?? DateTime.now();
-  var months =
-      (end.year - since.year) * 12 + (end.month - since.month);
+  var months = (end.year - since.year) * 12 + (end.month - since.month);
   if (end.day < since.day) months -= 1;
   if (months < 1) return '${end.difference(since).inDays}일째';
 

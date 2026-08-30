@@ -48,7 +48,9 @@ class FirestoreSubscriptionRepository implements SubscriptionRepository {
   @override
   Future<List<Subscription>> load() async {
     final snapshot = await _paths.subscriptions.get();
-    return snapshot.docs.map((doc) => Subscription.fromJson(doc.data())).toList();
+    return snapshot.docs
+        .map((doc) => Subscription.fromJson(doc.data()))
+        .toList();
   }
 
   @override
@@ -71,7 +73,10 @@ class FirestoreSubscriptionRepository implements SubscriptionRepository {
       if (!keep.contains(doc.id)) batch.delete(doc.reference);
     }
     for (final subscription in subscriptions) {
-      batch.set(_paths.subscriptions.doc(subscription.id), subscription.toJson());
+      batch.set(
+        _paths.subscriptions.doc(subscription.id),
+        subscription.toJson(),
+      );
     }
 
     await batch.commit();

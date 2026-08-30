@@ -139,9 +139,7 @@ class _UnlockedBody extends ConsumerWidget {
       ),
       error: (error, _) => Text(
         '계정 정보를 불러오지 못했어요',
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: AppColors.negative,
-        ),
+        style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.negative),
       ),
       data: (value) {
         if (value == null || value.isEmpty) {

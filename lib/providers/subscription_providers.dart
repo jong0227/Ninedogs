@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/diagnostics.dart';
+import '../core/save_failure.dart';
+import '../data/backup/snapshot_store.dart';
 import '../data/exchange/spending.dart';
 import '../data/models/billing_cycle.dart';
 import '../data/models/money.dart';
@@ -8,6 +11,16 @@ import '../data/repository/firestore_repositories.dart';
 import '../data/repository/subscription_repository.dart';
 import 'app_providers.dart';
 import 'sync_providers.dart';
+
+/// 되돌릴 수 있는 지점들. 최근 것부터.
+///
+/// 구독 목록이 바뀔 때마다 다시 읽는다 — 편집하면 새 지점이 생기니까.
+final snapshotsProvider = FutureProvider<List<SubscriptionSnapshot>>((
+  ref,
+) async {
+  ref.watch(allSubscriptionsProvider);
+  return const SnapshotStore().load(ref.watch(sharedPreferencesProvider));
+});
 
 /// 연결돼 있으면 household 저장소를, 아니면 이 기기 저장소를 쓴다.
 /// 화면과 로직은 어느 쪽인지 몰라도 된다.
@@ -49,7 +62,8 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
   /// 같은 id 의 구독을 통째로 갈아끼운다.
   Future<void> replace(Subscription subscription) => _mutate(
     (current) => [
-      for (final s in current) if (s.id == subscription.id) subscription else s,
+      for (final s in current)
+        if (s.id == subscription.id) subscription else s,
     ],
   );
 
@@ -294,22 +308,20 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
   );
 
   /// 잘못 추가한 가격 이력 한 점을 지운다. 최소 1개는 남아 있어야 한다.
-  Future<void> removePriceHistoryPoint(
-    String id,
-    DateTime effectiveFrom,
-  ) => _mutate(
-    (current) => [
-      for (final s in current)
-        if (s.id == id && s.priceHistory.length > 1)
-          s.copyWith(
-            priceHistory: s.priceHistory
-                .where((p) => !_sameDay(p.effectiveFrom, effectiveFrom))
-                .toList(),
-          )
-        else
-          s,
-    ],
-  );
+  Future<void> removePriceHistoryPoint(String id, DateTime effectiveFrom) =>
+      _mutate(
+        (current) => [
+          for (final s in current)
+            if (s.id == id && s.priceHistory.length > 1)
+              s.copyWith(
+                priceHistory: s.priceHistory
+                    .where((p) => !_sameDay(p.effectiveFrom, effectiveFrom))
+                    .toList(),
+              )
+            else
+              s,
+        ],
+      );
 
   static bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
@@ -343,20 +355,53 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
     final current = await future;
 
     final next = transform(current);
+
+    await _pushSnapshot(current);
+
     state = AsyncData(next);
 
     try {
       await _repository.save(next);
-    } catch (_) {
+    } catch (error, stackTrace) {
       // 저장이 실패했는데 화면만 바뀌어 있으면, 사용자는 저장된 줄 알고
       // 앱을 끈다. 그리고 다시 켰을 때 입력이 사라져 있다. 손으로 넣은
       // 기록이라 되살릴 방법도 없다.
       //
       // 기기 저장소는 거의 실패하지 않지만 가족 공유(Firestore)는 네트워크를
-      // 탄다. 화면을 되돌려서 "안 됐다"를 눈에 보이게 한다.
+      // 탄다. 화면을 되돌리고 던져서 "안 됐다"를 눈에 보이게 한다.
       state = AsyncData(current);
-      rethrow;
+      Error.throwWithStackTrace(SubscriptionSaveFailure(error), stackTrace);
     }
+  }
+
+  /// 바꾸기 전 상태를 되돌릴 지점으로 남긴다.
+  ///
+  /// 실패해도 그냥 넘어간다. 스냅샷은 곁다리라, 이것 때문에 정작 사용자의
+  /// 편집이 막히면 본말이 뒤바뀐다. 저장소를 아예 못 잡는 환경(테스트 등)도
+  /// 마찬가지로 편집은 정상 동작해야 한다.
+  Future<void> _pushSnapshot(List<Subscription> before) async {
+    try {
+      await const SnapshotStore().push(
+        ref.read(sharedPreferencesProvider),
+        before,
+      );
+    } catch (error) {
+      logIgnored('되돌릴 지점을 남기지 못했다', error);
+    }
+  }
+
+  /// 스냅샷 하나로 되돌린다. 되돌린 지점은 목록에서 뺀다.
+  Future<void> restore(SubscriptionSnapshot snapshot) async {
+    // 되돌리기 자체도 되돌릴 수 있어야 한다. 엉뚱한 지점을 골랐을 때
+    // 지금 상태로 다시 올 길이 없으면 더 큰 사고가 된다.
+    await _pushSnapshot(state.value ?? const []);
+    await const SnapshotStore().drop(
+      ref.read(sharedPreferencesProvider),
+      snapshot.savedAt,
+    );
+
+    state = AsyncData(snapshot.subscriptions);
+    await _repository.save(snapshot.subscriptions);
   }
 }
 
@@ -382,11 +427,13 @@ final subscriptionByIdProvider = Provider.family<Subscription?, String>((
 });
 
 final activeSubscriptionsProvider = Provider<List<Subscription>>(
-  (ref) => ref.watch(allSubscriptionsProvider).where((s) => s.isActive).toList(),
+  (ref) =>
+      ref.watch(allSubscriptionsProvider).where((s) => s.isActive).toList(),
 );
 
 final canceledSubscriptionsProvider = Provider<List<Subscription>>(
-  (ref) => ref.watch(allSubscriptionsProvider).where((s) => !s.isActive).toList(),
+  (ref) =>
+      ref.watch(allSubscriptionsProvider).where((s) => !s.isActive).toList(),
 );
 
 /// 구독 중인 서비스의 월 환산 합계. 통화별로 나눠서 돌려준다.
@@ -398,7 +445,9 @@ final monthlyTotalProvider = Provider<Map<String, Money>>(
 
 /// 지금까지 구독에 쓴 전체 금액. 해지한 구독도 포함한다.
 final lifetimeTotalProvider = Provider<Map<String, Money>>(
-  (ref) => _sumByCurrency(ref.watch(allSubscriptionsProvider).map((s) => s.totalSpent)),
+  (ref) => _sumByCurrency(
+    ref.watch(allSubscriptionsProvider).map((s) => s.totalSpent),
+  ),
 );
 
 /// 통화가 섞여 있어도 하나의 원화 숫자로 보고 싶을 때 쓴다.
@@ -432,11 +481,7 @@ final lifetimeTotalKrwProvider = Provider<Money?>((ref) {
   );
   if (unconvertible) return null;
 
-  return lifetimeTotalInKrw(
-    subscriptions,
-    rates: rates,
-    todayRate: todayRate,
-  );
+  return lifetimeTotalInKrw(subscriptions, rates: rates, todayRate: todayRate);
 });
 
 /// 통화별 합계를 전부 원화로 바꿔 하나로 더한다.

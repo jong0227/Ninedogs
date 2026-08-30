@@ -62,9 +62,7 @@ Future<void> showPriceHistoryEditor(
                 onTap: pickDateForPoint,
                 borderRadius: BorderRadius.circular(AppRadius.sm),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.sm,
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                   child: Row(
                     children: [
                       Icon(
@@ -165,7 +163,10 @@ Future<void> showPriceHistoryEditor(
 
 class _PriceHistoryResult {
   const _PriceHistoryResult.save(this.date, this.amount) : delete = false;
-  const _PriceHistoryResult.delete() : date = null, amount = null, delete = true;
+  const _PriceHistoryResult.delete()
+    : date = null,
+      amount = null,
+      delete = true;
 
   final DateTime? date;
   final Money? amount;

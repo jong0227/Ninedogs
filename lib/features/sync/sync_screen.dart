@@ -287,10 +287,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
           style: TextButton.styleFrom(foregroundColor: AppColors.negative),
           child: const Text('연결 끊기'),
         ),
-        Text(
-          '끊어도 지금까지 내용은 이 기기에 남아요',
-          style: theme.textTheme.labelMedium,
-        ),
+        Text('끊어도 지금까지 내용은 이 기기에 남아요', style: theme.textTheme.labelMedium),
       ],
     );
   }
@@ -327,13 +324,15 @@ class _HowItWorks extends StatelessWidget {
           const _Step(
             n: '1',
             title: '한 명이 코드 만들기',
-            body: '한 사람이 "초대 코드 만들기"를 누르면 6자리 코드가 나와요. '
+            body:
+                '한 사람이 "초대 코드 만들기"를 누르면 6자리 코드가 나와요. '
                 '로그인도, 가입도 필요 없어요.',
           ),
           const _Step(
             n: '2',
             title: '다른 한 명이 코드 입력',
-            body: '카톡 등으로 코드를 보내고, 배우자가 그 코드를 입력하면 끝. '
+            body:
+                '카톡 등으로 코드를 보내고, 배우자가 그 코드를 입력하면 끝. '
                 '이제 같은 목록을 함께 봐요.',
             last: true,
           ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../data/catalog/catalog_service.dart';
+import '../data/catalog/catalog_service.dart';
 
 /// 분야별 색.
 ///

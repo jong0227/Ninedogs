@@ -208,8 +208,7 @@ Future<void> showPeriodEditor(
     for (final period in periods)
       if (!(isEditing && _sameDay(period.startedAt, existing.startedAt)))
         period,
-    if (!result.delete)
-      (startedAt: result.startedAt!, endedAt: result.endedAt),
+    if (!result.delete) (startedAt: result.startedAt!, endedAt: result.endedAt),
   ];
 
   await notifier.setPeriods(subscription.id, next);
@@ -271,9 +270,7 @@ class _DateRow extends StatelessWidget {
               color: theme.textTheme.labelMedium?.color,
             ),
             const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(value, style: theme.textTheme.bodyMedium),
-            ),
+            Expanded(child: Text(value, style: theme.textTheme.bodyMedium)),
             Icon(
               Icons.chevron_right,
               size: 18,

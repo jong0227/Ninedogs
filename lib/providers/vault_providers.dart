@@ -54,12 +54,11 @@ final biometricEnabledProvider = FutureProvider<bool>(
 
 /// PBKDF2 반복 횟수. 키 유도를 일부러 느리게 만들어 무차별 대입을 막는다.
 /// 테스트에서는 낮은 값으로 override 해서 실행 시간을 줄인다.
-final vaultIterationsProvider = Provider<int>(
-  (ref) => VaultCrypto.iterations,
-);
+final vaultIterationsProvider = Provider<int>((ref) => VaultCrypto.iterations);
 
 class VaultNotifier extends AsyncNotifier<VaultState> {
-  CredentialRepository get _repository => ref.read(credentialRepositoryProvider);
+  CredentialRepository get _repository =>
+      ref.read(credentialRepositoryProvider);
 
   int get _iterations => ref.read(vaultIterationsProvider);
 
@@ -206,7 +205,8 @@ final vaultProvider = AsyncNotifierProvider<VaultNotifier, VaultState>(
 
 /// 암호화된 채로 들고 있는 계정 정보. 잠겨 있어도 목록 자체는 볼 수 있다.
 class StoredCredentialsNotifier extends AsyncNotifier<List<StoredCredential>> {
-  CredentialRepository get _repository => ref.read(credentialRepositoryProvider);
+  CredentialRepository get _repository =>
+      ref.read(credentialRepositoryProvider);
 
   @override
   Future<List<StoredCredential>> build() {
@@ -288,8 +288,5 @@ final credentialProvider = FutureProvider.family<Credential?, String>((
   // id 는 subscriptionId 에서 그대로 유도한다. 여기서 난수 id 를 만들면
   // provider 가 rebuild 될 때마다 다른 값이 나와서 상태가 안정되지 않는다.
   // 계정 정보는 구독당 하나뿐이라 이 id 로 충분하다.
-  return Credential(
-    id: 'cred:$subscriptionId',
-    subscriptionId: subscriptionId,
-  );
+  return Credential(id: 'cred:$subscriptionId', subscriptionId: subscriptionId);
 });

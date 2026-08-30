@@ -46,11 +46,7 @@ Future<void> showBillingLookupSheet(
               const SizedBox(height: AppSpacing.xl),
 
               if (lookup != null) ...[
-                _Step(
-                  number: '1',
-                  title: '이 순서로 들어가세요',
-                  body: lookup.path,
-                ),
+                _Step(number: '1', title: '이 순서로 들어가세요', body: lookup.path),
                 _Step(
                   number: '2',
                   title: '볼 수 있는 범위',
@@ -91,8 +87,7 @@ Future<void> showBillingLookupSheet(
               ),
               const SizedBox(height: AppSpacing.sm),
               OutlinedButton.icon(
-                onPressed: () =>
-                    _open(sheetContext, playStoreSubscriptionsUrl),
+                onPressed: () => _open(sheetContext, playStoreSubscriptionsUrl),
                 icon: const Icon(Icons.shop_outlined, size: 18),
                 label: const Text('Google Play 정기결제'),
               ),
@@ -123,18 +118,14 @@ Future<void> _open(BuildContext context, String url) async {
 
   final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
   if (!opened && context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('브라우저를 열지 못했어요')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('브라우저를 열지 못했어요')));
   }
 }
 
 class _Step extends StatelessWidget {
-  const _Step({
-    required this.number,
-    required this.title,
-    required this.body,
-  });
+  const _Step({required this.number, required this.title, required this.body});
 
   final String number;
   final String title;

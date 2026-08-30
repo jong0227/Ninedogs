@@ -1,3 +1,4 @@
+import '../../core/diagnostics.dart';
 import 'dart:convert';
 
 import '../models/credential.dart';
@@ -72,9 +73,7 @@ class BackupFile {
 
     final version = (decoded['version'] as num?)?.toInt() ?? 0;
     if (version > currentVersion) {
-      throw const BackupFormatException(
-        '더 새로운 버전에서 만든 백업이에요. 앱을 업데이트해주세요',
-      );
+      throw const BackupFormatException('더 새로운 버전에서 만든 백업이에요. 앱을 업데이트해주세요');
     }
 
     try {
@@ -89,7 +88,8 @@ class BackupFile {
             .map((e) => StoredCredential.fromJson(e as Map<String, Object?>))
             .toList(),
       );
-    } catch (_) {
+    } catch (error) {
+      logIgnored('백업 파일 형식이 깨졌다', error);
       throw const BackupFormatException('백업 내용을 읽지 못했어요');
     }
   }

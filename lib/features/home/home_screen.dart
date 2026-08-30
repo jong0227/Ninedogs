@@ -26,9 +26,9 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       appBar: const NinedogsAppBar(section: '내 구독'),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ServicePickerScreen()),
-        ),
+        onPressed: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const ServicePickerScreen())),
         backgroundColor: AppColors.accent,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         icon: const Icon(Icons.add),

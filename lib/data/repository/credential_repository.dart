@@ -63,9 +63,7 @@ class LocalCredentialRepository implements CredentialRepository {
     if (raw == null || raw.isEmpty) return null;
 
     try {
-      return VaultMetadata.fromJson(
-        jsonDecode(raw) as Map<String, Object?>,
-      );
+      return VaultMetadata.fromJson(jsonDecode(raw) as Map<String, Object?>);
     } on FormatException {
       return null;
     }

@@ -26,10 +26,7 @@ abstract final class ServiceCatalog {
       searchTerm: 'YouTube',
       category: ServiceCategory.video,
       brandColor: 0xFFFF0000,
-      plans: [
-        CatalogPlan('개인', 14900),
-        CatalogPlan('가족', 31900),
-      ],
+      plans: [CatalogPlan('개인', 14900), CatalogPlan('가족', 31900)],
     ),
     CatalogService(
       id: 'disney_plus',
@@ -290,10 +287,7 @@ abstract final class ServiceCatalog {
       searchTerm: 'Microsoft 365',
       category: ServiceCategory.productivity,
       brandColor: 0xFF0078D4,
-      plans: [
-        CatalogPlan('개인', 8900),
-        CatalogPlan('가족', 11900),
-      ],
+      plans: [CatalogPlan('개인', 8900), CatalogPlan('가족', 11900)],
     ),
 
     // ── 클라우드 ──────────────────────────────────────────
@@ -419,9 +413,7 @@ abstract final class ServiceCatalog {
       searchTerm: 'Nintendo Switch Online',
       category: ServiceCategory.gaming,
       brandColor: 0xFFE60012,
-      plans: [
-        CatalogPlan('개인 (연간)', 19900, cycle: BillingCycle.yearly),
-      ],
+      plans: [CatalogPlan('개인 (연간)', 19900, cycle: BillingCycle.yearly)],
     ),
     CatalogService(
       id: 'geforce_now',
@@ -584,9 +576,7 @@ abstract final class ServiceCatalog {
       searchTerm: '롱블랙',
       category: ServiceCategory.reading,
       brandColor: 0xFF1A1A1A,
-      plans: [
-        CatalogPlan('연간', 120000, cycle: BillingCycle.yearly),
-      ],
+      plans: [CatalogPlan('연간', 120000, cycle: BillingCycle.yearly)],
     ),
     CatalogService(
       id: 'class101',
@@ -671,7 +661,8 @@ abstract final class ServiceCatalog {
     'perplexity': 'ai.perplexity.app.android',
     'notion': 'notion.id',
     // Google Play 주소(details?id=)로 확인.
-    'hankyung_plus': 'com.hankyung.plus', // '모바일한경' 앱. 무료 '한국경제'(com.hankyung)와 다르다.
+    'hankyung_plus':
+        'com.hankyung.plus', // '모바일한경' 앱. 무료 '한국경제'(com.hankyung)와 다르다.
     'maekyung': 'com.mk.news',
     'chosun_membership': 'com.chosunmedia.android',
   };

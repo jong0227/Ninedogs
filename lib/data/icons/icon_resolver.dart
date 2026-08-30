@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/diagnostics.dart';
+
 /// 서비스 이름으로 고해상도 앱 아이콘 URL을 찾아온다.
 ///
 /// 애플 App Store 검색 API를 쓴다. 키가 필요 없고 512px 원본을 주기 때문에
@@ -82,7 +84,8 @@ class IconResolver {
           first['artworkUrl100'] as String? ??
           first['artworkUrl60'] as String?;
       return artwork == null ? null : upscale(artwork);
-    } catch (_) {
+    } catch (error) {
+      logIgnored('아이콘을 찾지 못했다', error);
       // 네트워크가 없거나 응답이 이상하면 그냥 대체 아이콘으로 넘어간다.
       return null;
     }

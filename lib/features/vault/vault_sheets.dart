@@ -114,10 +114,7 @@ class _VaultChangePasswordFormState
           controller: _current,
           obscureText: true,
           autofocus: true,
-          decoration: InputDecoration(
-            labelText: '지금 쓰는 암호',
-            errorText: _error,
-          ),
+          decoration: InputDecoration(labelText: '지금 쓰는 암호', errorText: _error),
         ),
         const SizedBox(height: AppSpacing.md),
         TextField(
@@ -150,9 +147,7 @@ class _SheetFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.only(
-      bottom: MediaQuery.of(context).viewInsets.bottom,
-    ),
+    padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
     child: SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xl),
@@ -325,7 +320,9 @@ class _VaultUnlockFormState extends ConsumerState<_VaultUnlockForm> {
 
   Future<void> _tryBiometrics() async {
     setState(() => _working = true);
-    final opened = await ref.read(vaultProvider.notifier).unlockWithBiometrics();
+    final opened = await ref
+        .read(vaultProvider.notifier)
+        .unlockWithBiometrics();
 
     if (!mounted) return;
     if (opened) {
@@ -342,7 +339,9 @@ class _VaultUnlockFormState extends ConsumerState<_VaultUnlockForm> {
       _working = true;
     });
 
-    final opened = await ref.read(vaultProvider.notifier).unlock(_password.text);
+    final opened = await ref
+        .read(vaultProvider.notifier)
+        .unlock(_password.text);
 
     if (!mounted) return;
     if (opened) {

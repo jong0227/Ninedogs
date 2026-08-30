@@ -334,9 +334,7 @@ class Subscription {
     final dates = <DateTime>[];
 
     for (final period in pastPeriods) {
-      dates.addAll(
-        _datesBetween(period.startedAt, period.endedAt, start, end),
-      );
+      dates.addAll(_datesBetween(period.startedAt, period.endedAt, start, end));
     }
     dates.addAll(_datesBetween(_anchor, canceledAt, start, end));
 
@@ -464,15 +462,11 @@ class Subscription {
         : brandColorValue(),
     cycle: cycle ?? this.cycle,
     startedAt: startedAt ?? this.startedAt,
-    billingAnchor: billingAnchor == null
-        ? this.billingAnchor
-        : billingAnchor(),
+    billingAnchor: billingAnchor == null ? this.billingAnchor : billingAnchor(),
     canceledAt: canceledAt == null ? this.canceledAt : canceledAt(),
     accessEndsAt: accessEndsAt == null ? this.accessEndsAt : accessEndsAt(),
     trialEndsAt: trialEndsAt == null ? this.trialEndsAt : trialEndsAt(),
-    paymentMethod: paymentMethod == null
-        ? this.paymentMethod
-        : paymentMethod(),
+    paymentMethod: paymentMethod == null ? this.paymentMethod : paymentMethod(),
     credentialId: credentialId == null ? this.credentialId : credentialId(),
     memo: memo == null ? this.memo : memo(),
     reminderDaysBefore: reminderDaysBefore == null

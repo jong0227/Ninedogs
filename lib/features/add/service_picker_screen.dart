@@ -132,9 +132,8 @@ class _ServicePickerScreenState extends ConsumerState<ServicePickerScreen> {
                 AppSpacing.md,
               ),
               child: TextButton.icon(
-                onPressed: () => _openForm(
-                  customName: trimmed.isEmpty ? null : trimmed,
-                ),
+                onPressed: () =>
+                    _openForm(customName: trimmed.isEmpty ? null : trimmed),
                 icon: const Icon(Icons.add, size: 18),
                 label: Text(
                   trimmed.isEmpty ? '목록에 없는 구독 직접 추가' : "'$trimmed' 직접 추가",

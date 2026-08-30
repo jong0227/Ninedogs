@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/diagnostics.dart';
+
 /// 배포된 최신 버전 정보.
 class AppRelease {
   const AppRelease({
@@ -67,7 +69,8 @@ class UpdateChecker {
             headers: const {'Accept': 'application/vnd.github+json'},
           )
           .timeout(const Duration(seconds: 10));
-    } catch (_) {
+    } catch (error) {
+      logIgnored('업데이트 확인 요청이 실패했다', error);
       return const UpdateCheckFailed('네트워크에 연결할 수 없어요');
     }
 
@@ -83,7 +86,8 @@ class UpdateChecker {
       release = _parse(
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, Object?>,
       );
-    } catch (_) {
+    } catch (error) {
+      logIgnored('업데이트 응답을 읽지 못했다', error);
       return const UpdateCheckFailed('업데이트 정보를 읽지 못했어요');
     }
 
@@ -101,9 +105,7 @@ class UpdateChecker {
     return AppRelease(
       version: normalizeVersion(json['tag_name'] as String? ?? ''),
       pageUrl: json['html_url'] as String? ?? '',
-      apkUrl: apk.isEmpty
-          ? null
-          : apk.first['browser_download_url'] as String?,
+      apkUrl: apk.isEmpty ? null : apk.first['browser_download_url'] as String?,
       notes: json['body'] as String?,
     );
   }

@@ -145,10 +145,7 @@ class _ServiceBrowserState extends State<ServiceBrowser> {
     });
     _revealChip(index);
 
-    final target = _offsets[index].clamp(
-      0.0,
-      _scroll.position.maxScrollExtent,
-    );
+    final target = _offsets[index].clamp(0.0, _scroll.position.maxScrollExtent);
     await _scroll.animateTo(
       target,
       duration: const Duration(milliseconds: 320),

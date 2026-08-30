@@ -26,9 +26,7 @@ class MonthlyAmountText extends StatelessWidget {
 
     final amount = KrwAmountText(
       converted ? subscription.monthlyCost : subscription.currentPrice,
-      style: theme.textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.w700,
-      ),
+      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
     );
 
     if (!converted) return amount;

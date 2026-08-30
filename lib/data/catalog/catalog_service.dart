@@ -17,7 +17,11 @@ enum ServiceCategory {
 
 /// 서비스의 요금제. 온보딩에서 탭 한 번으로 고를 수 있게 미리 담아둔다.
 class CatalogPlan {
-  const CatalogPlan(this.name, this.priceKrw, {this.cycle = BillingCycle.monthly});
+  const CatalogPlan(
+    this.name,
+    this.priceKrw, {
+    this.cycle = BillingCycle.monthly,
+  });
 
   final String name;
 

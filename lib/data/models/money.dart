@@ -1,5 +1,19 @@
 import 'package:intl/intl.dart';
 
+/// 통화가 다른 금액끼리 연산하려 했을 때.
+///
+/// 버그를 드러내려고 있는 것이지 사용자에게 보여주려고 있는 게 아니다.
+/// 이게 던져졌다면 환산 없이 더한 자리가 어딘가 있다는 뜻이다.
+class CurrencyMismatchError extends Error {
+  CurrencyMismatchError(this.left, this.right);
+
+  final String left;
+  final String right;
+
+  @override
+  String toString() => '통화가 다른 금액끼리는 연산할 수 없습니다: $left vs $right';
+}
+
 /// 금액. 통화의 최소 단위(원, 센트)를 정수로 담는다.
 /// double 로 돈을 다루면 누적 합계에서 오차가 생기므로 정수로 고정한다.
 class Money implements Comparable<Money> {
@@ -42,11 +56,17 @@ class Money implements Comparable<Money> {
     return minor.compareTo(other.minor);
   }
 
+  /// 통화가 다르면 **던진다.** 예전엔 assert 였다.
+  ///
+  /// assert 는 릴리즈 빌드에서 통째로 제거된다. 개발 중에는 크래시로 잡히니
+  /// 안전해 보였지만, 정작 사용자 기기에서는 검사 자체가 사라져서 13,500원과
+  /// $1.00 를 더해 13,501원을 내놓았다. 아무 경고 없이 숫자만 틀린다.
+  ///
+  /// 돈 계산은 조용히 틀리느니 드러나게 실패하는 편이 낫다. 통화가 섞일 수
+  /// 있는 자리(누적 지출 등)는 애초에 환율로 환산해서 더한다.
   void _assertSameCurrency(Money other) {
-    assert(
-      other.currency == currency,
-      '통화가 다른 금액끼리는 연산할 수 없습니다: $currency vs ${other.currency}',
-    );
+    if (other.currency == currency) return;
+    throw CurrencyMismatchError(currency, other.currency);
   }
 
   /// 사람이 입력·확인하는 단위. KRW 13500 -> 13500.0, USD 999 -> 9.99
@@ -56,9 +76,8 @@ class Money implements Comparable<Money> {
   ///
   /// 원화는 소수점을 붙이지 않고(13500), 달러는 두 자리를 붙인다(9.99).
   /// 편집 화면마다 똑같은 함수를 복사해 두고 있었다.
-  String get inputText => decimalDigits == 0
-      ? major.toStringAsFixed(0)
-      : major.toStringAsFixed(2);
+  String get inputText =>
+      decimalDigits == 0 ? major.toStringAsFixed(0) : major.toStringAsFixed(2);
 
   /// 입력창의 문자열을 금액으로. 숫자로 읽을 수 없으면 null.
   static Money? tryParse(String text, {String currency = krw}) {
@@ -77,10 +96,7 @@ class Money implements Comparable<Money> {
   Money convertedTo(String newCurrency) {
     if (newCurrency == currency) return this;
     final newDigits = _zeroDecimalCurrencies.contains(newCurrency) ? 0 : 2;
-    return Money(
-      (major * _pow10(newDigits)).round(),
-      currency: newCurrency,
-    );
+    return Money((major * _pow10(newDigits)).round(), currency: newCurrency);
   }
 
   String format({String? locale}) {

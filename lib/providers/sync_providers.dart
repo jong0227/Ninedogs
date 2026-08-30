@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/diagnostics.dart';
 import '../data/repository/credential_repository.dart';
 import '../data/repository/firestore_repositories.dart';
 import '../data/repository/subscription_repository.dart';
@@ -86,7 +87,8 @@ class SyncCoordinator {
         await local.saveMetadata(metadata);
         await local.save(await remoteCredentials.load());
       }
-    } catch (_) {
+    } catch (error) {
+      logIgnored('가족 연결 해제 중 원격 정리에 실패했다', error);
       // 무시하고 연결만 끊는다
     }
 

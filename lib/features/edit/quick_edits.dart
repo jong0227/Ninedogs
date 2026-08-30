@@ -167,10 +167,7 @@ Future<PriceEditKind?> askPriceEditKind(
           children: [
             _AmountDelta(before: before, next: next),
             const SizedBox(height: AppSpacing.lg),
-            Text(
-              '고르는 것에 따라 누적 지출이 달라져요.',
-              style: theme.textTheme.labelMedium,
-            ),
+            Text('고르는 것에 따라 누적 지출이 달라져요.', style: theme.textTheme.labelMedium),
             const SizedBox(height: AppSpacing.md),
             _ChoiceCard(
               icon: increased ? Icons.trending_up : Icons.trending_down,
@@ -302,10 +299,7 @@ class SheetAction extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.titleMedium,
-                    ),
+                    Text(title, style: theme.textTheme.titleMedium),
                     const SizedBox(height: 2),
                     Text(body, style: theme.textTheme.labelMedium),
                   ],
@@ -371,7 +365,9 @@ class _ChoiceCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       body,
-                      style: theme.textTheme.labelMedium?.copyWith(height: 1.35),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        height: 1.35,
+                      ),
                     ),
                   ],
                 ),
@@ -493,8 +489,7 @@ Future<void> showPaymentMethodEditor(
     builder: (dialogContext) {
       final theme = Theme.of(dialogContext);
 
-      void submit() =>
-          Navigator.pop(dialogContext, controller.text.trim());
+      void submit() => Navigator.pop(dialogContext, controller.text.trim());
 
       return AlertDialog(
         title: const Text('어떤 걸로 결제하나요?'),
@@ -516,10 +511,7 @@ Future<void> showPaymentMethodEditor(
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text(
-              '비워두면 등록하지 않은 것으로 둬요.',
-              style: theme.textTheme.labelMedium,
-            ),
+            Text('비워두면 등록하지 않은 것으로 둬요.', style: theme.textTheme.labelMedium),
           ],
         ),
         actions: [
