@@ -11,7 +11,9 @@ import '../../data/catalog/catalog_service.dart';
 import '../../data/catalog/service_catalog.dart';
 import '../../data/models/billing_cycle.dart';
 import '../../data/models/money.dart';
+import '../../data/models/people.dart';
 import '../../data/models/subscription.dart';
+import '../../providers/people_providers.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/app_date_picker.dart';
 import '../../widgets/service_icon.dart';
@@ -57,6 +59,7 @@ class _SubscriptionFormScreenState
   late final TextEditingController _memo;
 
   late String _currency;
+  String? _owner;
   late BillingCycle _cycle;
   late DateTime _startedAt;
   DateTime? _billingAnchor;
@@ -94,6 +97,7 @@ class _SubscriptionFormScreenState
     );
     _paymentMethod = TextEditingController(text: existing?.paymentMethod ?? '');
     _memo = TextEditingController(text: existing?.memo ?? plan?.name ?? '');
+    _owner = existing?.owner;
 
     _cycle = existing?.cycle ?? plan?.cycle ?? BillingCycle.monthly;
     _startedAt = existing?.startedAt ?? DateTime.now();
@@ -180,6 +184,7 @@ class _SubscriptionFormScreenState
       ],
       paymentMethod: _nullIfBlank(_paymentMethod.text),
       memo: _nullIfBlank(_memo.text),
+      owner: _owner,
     );
 
     await ref.read(subscriptionsProvider.notifier).add(subscription);
@@ -201,6 +206,7 @@ class _SubscriptionFormScreenState
       trialEndsAt: () => _trialEndsAt,
       paymentMethod: () => _nullIfBlank(_paymentMethod.text),
       memo: () => _nullIfBlank(_memo.text),
+      owner: () => _owner,
     );
 
     await ref.read(subscriptionsProvider.notifier).replace(updated);
@@ -541,6 +547,13 @@ class _SubscriptionFormScreenState
             ),
           const SizedBox(height: AppSpacing.xl),
 
+          const FieldLabel('누구 것'),
+          _OwnerPicker(
+            value: _owner,
+            onChanged: (value) => setState(() => _owner = value),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
           const FieldLabel('결제 수단'),
           TextField(
             controller: _paymentMethod,
@@ -561,6 +574,43 @@ class _SubscriptionFormScreenState
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 구독 주인 고르기. 두 사람 + 공동(미지정). 색은 목록의 이름표와 같다.
+class _OwnerPicker extends ConsumerWidget {
+  const _OwnerPicker({required this.value, required this.onChanged});
+
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final people = ref.watch(peopleProvider);
+    Widget chip(String? key, String label, Color? color) {
+      final selected = value == key;
+      return ChoiceChip(
+        label: Text(label),
+        selected: selected,
+        showCheckmark: false,
+        selectedColor: (color ?? Theme.of(context).colorScheme.onSurface)
+            .withValues(alpha: 0.18),
+        labelStyle: TextStyle(
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          color: selected ? color : null,
+        ),
+        onSelected: (_) => onChanged(key),
+      );
+    }
+
+    return Wrap(
+      spacing: AppSpacing.sm,
+      children: [
+        for (final key in People.slots)
+          chip(key, people.nameOf(key), People.colorOf(key)),
+        chip(null, '공동', null),
+      ],
     );
   }
 }

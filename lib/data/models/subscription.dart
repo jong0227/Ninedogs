@@ -95,6 +95,7 @@ class Subscription {
     required this.paymentMethod,
     required this.credentialId,
     required this.memo,
+    required this.owner,
     required this.reminderDaysBefore,
     required List<PricePoint> priceHistory,
     required List<SubscriptionPeriod> pastPeriods,
@@ -127,6 +128,7 @@ class Subscription {
     String? paymentMethod,
     String? credentialId,
     String? memo,
+    String? owner,
     List<int>? reminderDaysBefore,
     List<SubscriptionPeriod> pastPeriods = const [],
   }) => Subscription._(
@@ -144,6 +146,7 @@ class Subscription {
     paymentMethod: paymentMethod,
     credentialId: credentialId,
     memo: memo,
+    owner: owner,
     reminderDaysBefore: reminderDaysBefore,
     priceHistory: priceHistory,
     pastPeriods: pastPeriods,
@@ -198,6 +201,12 @@ class Subscription {
   final String? credentialId;
 
   final String? memo;
+
+  /// 누구의 구독인지. 가족 연결의 사람 칸 키(`a`, `b`)를 담는다. null 이면 공동·미지정.
+  ///
+  /// 이름이 아니라 칸 키를 담는 이유: 이름을 바꿔도 구독마다 고칠 필요가 없고,
+  /// 색도 칸에 고정돼 두 폰에서 같은 사람이 늘 같은 색으로 보인다. ([People])
+  final String? owner;
 
   /// 결제 며칠 전에 알림을 받을지. 예: [7, 1]
   ///
@@ -451,6 +460,7 @@ class Subscription {
     Patch<String?>? paymentMethod,
     Patch<String?>? credentialId,
     Patch<String?>? memo,
+    Patch<String?>? owner,
     Patch<List<int>?>? reminderDaysBefore,
   }) => Subscription._(
     id: id,
@@ -469,6 +479,7 @@ class Subscription {
     paymentMethod: paymentMethod == null ? this.paymentMethod : paymentMethod(),
     credentialId: credentialId == null ? this.credentialId : credentialId(),
     memo: memo == null ? this.memo : memo(),
+    owner: owner == null ? this.owner : owner(),
     reminderDaysBefore: reminderDaysBefore == null
         ? this.reminderDaysBefore
         : reminderDaysBefore(),
@@ -492,6 +503,7 @@ class Subscription {
     'paymentMethod': paymentMethod,
     'credentialId': credentialId,
     'memo': memo,
+    'owner': owner,
     'reminderDaysBefore': reminderDaysBefore,
     'pastPeriods': pastPeriods.map((p) => p.toJson()).toList(),
   };
@@ -514,6 +526,8 @@ class Subscription {
     paymentMethod: json['paymentMethod'] as String?,
     credentialId: json['credentialId'] as String?,
     memo: json['memo'] as String?,
+    // 이 필드가 생기기 전 데이터에는 없다 → 공동·미지정으로 읽는다.
+    owner: json['owner'] as String?,
     reminderDaysBefore: (json['reminderDaysBefore'] as List?)
         ?.map((e) => (e as num).toInt())
         .toList(),

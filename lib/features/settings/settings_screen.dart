@@ -7,7 +7,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/update/update_checker.dart';
 import '../../providers/app_providers.dart';
+import '../../data/models/people.dart';
 import '../../providers/notification_providers.dart';
+import '../../providers/people_providers.dart';
 import '../../providers/reset_providers.dart';
 import '../../providers/sync_providers.dart';
 import '../../providers/vault_providers.dart';
@@ -289,6 +291,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ).push(MaterialPageRoute(builder: (_) => const SyncScreen())),
           ),
 
+          for (final key in People.slots)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(
+                radius: 6,
+                backgroundColor: People.colorOf(key),
+              ),
+              minLeadingWidth: 12,
+              title: Text(ref.watch(peopleProvider).nameOf(key)),
+              subtitle: Text(
+                '구독 이름표에 쓰는 이름. 눌러서 바꾸기',
+                style: theme.textTheme.labelMedium,
+              ),
+              onTap: () => _renamePerson(context, ref, key),
+            ),
+
           const SizedBox(height: AppSpacing.xl),
           _SectionTitle('백업'),
           ListTile(
@@ -557,4 +575,37 @@ class _SectionTitle extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
     child: Text(title, style: Theme.of(context).textTheme.headlineSmall),
   );
+}
+
+Future<void> _renamePerson(BuildContext context, WidgetRef ref, String key) async {
+  final controller = TextEditingController(
+    text: ref.read(peopleProvider).nameOf(key),
+  );
+  final name = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('이름 바꾸기'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        maxLength: 6,
+        decoration: const InputDecoration(hintText: '예: 나, 배우자'),
+        onSubmitted: (value) => Navigator.of(context).pop(value),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('취소'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(controller.text),
+          child: const Text('저장'),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  if (name != null && name.trim().isNotEmpty) {
+    await ref.read(peopleProvider.notifier).rename(key, name);
+  }
 }

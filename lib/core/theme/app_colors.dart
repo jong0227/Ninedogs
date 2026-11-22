@@ -17,6 +17,11 @@ abstract final class AppColors {
   static const positive = Color(0xFF3FB68B);
   static const negative = Color(0xFFE5484D);
 
+  // 사람 색 — 구독이 누구 것인지 보여 주는 이름표. 칸(a/b)에 고정이라
+  // 두 폰에서 같은 사람이 늘 같은 색이다. 어두운·밝은 바탕 모두에서 읽힌다.
+  static const personA = Color(0xFF3B82F6); // 파랑
+  static const personB = Color(0xFFF43F5E); // 빨강 계열(로즈)
+
   // Dark — 순수 검정 바탕에 단계별로 살짝만 띄운다
   static const darkBackground = Color(0xFF000000);
   static const darkSurface = Color(0xFF121212);

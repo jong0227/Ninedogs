@@ -20,6 +20,7 @@ import '../edit/subscription_form_screen.dart';
 import '../notifications/reminder_picker.dart';
 import '../vault/credential_section.dart';
 import 'billing_lookup_sheet.dart';
+import '../../widgets/owner_badge.dart';
 
 class SubscriptionDetailScreen extends ConsumerWidget {
   const SubscriptionDetailScreen({super.key, required this.subscriptionId});
@@ -40,7 +41,19 @@ class SubscriptionDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(subscription.name),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Flexible(
+              child: Text(subscription.name, overflow: TextOverflow.ellipsis),
+            ),
+            if (subscription.owner != null) ...[
+              const SizedBox(width: 6),
+              OwnerBadge(subscription.owner),
+            ],
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.more_horiz),

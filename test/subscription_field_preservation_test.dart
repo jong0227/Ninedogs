@@ -46,6 +46,7 @@ Subscription fullyPopulated() => Subscription.create(
   paymentMethod: '신한카드 1234',
   credentialId: 'cred-1',
   memo: '프리미엄',
+  owner: 'a',
   reminderDaysBefore: const [7, 1],
   priceHistory: [
     PricePoint(

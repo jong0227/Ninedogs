@@ -10,6 +10,7 @@ import '../../providers/app_providers.dart';
 import '../../providers/subscription_providers.dart';
 import '../../widgets/monthly_amount_text.dart';
 import '../../widgets/ninedogs_app_bar.dart';
+import '../../widgets/owner_badge.dart';
 import '../../widgets/service_icon.dart';
 import '../add/service_picker_screen.dart';
 import '../detail/subscription_detail_screen.dart';
@@ -232,8 +233,8 @@ class _UpcomingRow extends StatelessWidget {
               ServiceIcon.forSubscription(subscription, size: 36),
               const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: Text(
-                  subscription.name,
+                child: _NameWithOwner(
+                  subscription: subscription,
                   style: theme.textTheme.bodyMedium,
                 ),
               ),
@@ -305,10 +306,9 @@ class _SubscriptionRow extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          subscription.name,
+                        _NameWithOwner(
+                          subscription: subscription,
                           style: theme.textTheme.titleMedium,
-                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -366,6 +366,35 @@ class _EmptyState extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 구독 이름 + 오른쪽 위의 작은 주인 이름표. 이름이 길면 이름만 줄여 쓴다.
+class _NameWithOwner extends StatelessWidget {
+  const _NameWithOwner({required this.subscription, this.style});
+
+  final Subscription subscription;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Flexible(
+          child: Text(
+            subscription.name,
+            style: style,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
+        if (subscription.owner != null) ...[
+          const SizedBox(width: 4),
+          OwnerBadge(subscription.owner),
+        ],
+      ],
     );
   }
 }
