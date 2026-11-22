@@ -62,7 +62,7 @@ lib/
 
 ## family_finance 와 공존 (2026-11-22~)
 
-가계부 앱 `C:devamily_finance`(github.com/jong0227/family_finance)가 **같은 Firebase(ninedogs-b2628)·같은 household** 의
+가계부 앱 `C:\dev\family_finance`(github.com/jong0227/family_finance)가 **같은 Firebase(ninedogs-b2628)·같은 household** 의
 구독·계정·금고 문서를 읽고 쓴다. 어느 앱에서 고쳐도 다른 앱에 반영된다.
 
 - 공유 모델·직렬화·카탈로그·금고 암호화는 **`packages/ninedogs_core`** 한 곳. 앱의 `lib/data/models/*` 등은 이 패키지를
