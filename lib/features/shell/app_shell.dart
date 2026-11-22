@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/diagnostics.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/notification_providers.dart';
 import '../../providers/subscription_providers.dart';
+import '../../providers/sync_providers.dart';
 import '../calendar/calendar_screen.dart';
 import '../home/home_screen.dart';
 import '../notifications/notification_rationale.dart';
@@ -35,6 +37,19 @@ class _AppShellState extends ConsumerState<AppShell> {
     // 알림 권한은 앱을 처음 제대로 쓰기 시작할 때 한 번 묻는다.
     // 온보딩 도중에 물으면 뭘 위한 권한인지 알 수 없어 거절당하기 쉽다.
     WidgetsBinding.instance.addPostFrameCallback((_) => _askNotifications());
+    _reportClient();
+  }
+
+  /// 가족에 연결돼 있으면 이 기기의 앱 버전을 남긴다. (SyncService.reportClient)
+  Future<void> _reportClient() async {
+    final householdId = ref.read(householdIdProvider);
+    if (householdId == null) return;
+    try {
+      final version = await ref.read(appVersionProvider.future);
+      await ref.read(syncServiceProvider).reportClient(householdId, version);
+    } catch (error) {
+      logIgnored('기기 버전 기록에 실패했다', error);
+    }
   }
 
   Future<void> _askNotifications() async {

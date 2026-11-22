@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'contract.dart';
 import 'household.dart';
 
 /// 동기화 과정에서 사용자에게 보여줄 수 있는 실패들.
@@ -139,5 +140,27 @@ class SyncService {
     await _households.doc(id).update({
       'memberUids': FieldValue.arrayRemove([myUid]),
     });
+  }
+
+  /// 이 기기가 어떤 앱·버전으로 이 가족에 붙어 있는지 남긴다.
+  ///
+  /// Ninedogs 와 family_finance 가 같은 구독을 쓰므로, 옛 버전 앱이 남아 있으면
+  /// 새 필드(예: 구독 주인)를 지울 수 있다. 다른 앱이 이 기록을 보고
+  /// "업데이트가 필요한 기기가 있어요"를 알려준다. 실패해도 앱 사용엔 지장 없다.
+  Future<void> reportClient(String householdId, String appVersion) async {
+    final uid = this.uid;
+    if (uid == null) return;
+    await _households
+        .doc(householdId)
+        .collection('meta')
+        .doc('clients')
+        .set({
+          uid: {
+            'app': 'ninedogs',
+            'version': appVersion,
+            'cv': kContractVersion,
+            'at': FieldValue.serverTimestamp(),
+          },
+        }, SetOptions(merge: true));
   }
 }

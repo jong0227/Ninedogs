@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../data/sync/contract.dart';
+
 /// 구독 저장이 실패했을 때.
 ///
 /// 저장에 실패하면 화면은 바뀌기 전으로 되돌아간다. 그런데 **왜** 되돌아갔는지
@@ -33,10 +35,15 @@ Future<bool> guardSave(
   try {
     await action();
     return true;
-  } on SubscriptionSaveFailure {
+  } on SubscriptionSaveFailure catch (failure) {
+    final tooNew = failure.cause is ContractTooNewException;
     messenger?.showSnackBar(
-      const SnackBar(
-        content: Text('저장하지 못해서 되돌렸어요. 잠시 뒤 다시 시도해주세요'),
+      SnackBar(
+        content: Text(
+          tooNew
+              ? '다른 앱이 더 새 버전으로 저장한 구독이 있어요. 설정에서 업데이트한 뒤 고쳐주세요'
+              : '저장하지 못해서 되돌렸어요. 잠시 뒤 다시 시도해주세요',
+        ),
         duration: Duration(seconds: 4),
       ),
     );

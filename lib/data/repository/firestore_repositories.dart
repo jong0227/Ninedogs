@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../models/credential.dart';
+import '../sync/contract.dart';
 import '../models/subscription.dart';
 import 'credential_repository.dart';
 import 'subscription_repository.dart';
@@ -87,7 +88,14 @@ class FirestoreSubscriptionRepository implements SubscriptionRepository {
     (s) => jsonEncode(s.toJson()),
   );
 
+  /// 서버에서 본 문서 중 가장 높은 계약 버전. 없으면 1(필드가 생기기 전 문서).
+  int _maxCv = 1;
+
   List<Subscription> _read(QuerySnapshot<Map<String, dynamic>> snapshot) {
+    for (final doc in snapshot.docs) {
+      final cv = (doc.data()['cv'] as num?)?.toInt() ?? 1;
+      if (cv > _maxCv) _maxCv = cv;
+    }
     final list = snapshot.docs
         .map((doc) => Subscription.fromJson(doc.data()))
         .toList();
@@ -112,6 +120,8 @@ class FirestoreSubscriptionRepository implements SubscriptionRepository {
   Future<void> save(List<Subscription> subscriptions) async {
     final allowDeletes = _known.isLoaded;
     if (!allowDeletes) await load();
+    // 이 앱이 모르는 새 모양의 문서가 있으면 덮어써 깨뜨리지 않게 아예 쓰지 않는다.
+    if (_maxCv > kContractVersion) throw ContractTooNewException(_maxCv);
 
     final next = {for (final s in subscriptions) s.id: s};
     final change = _known.diff(next, allowDeletes: allowDeletes);

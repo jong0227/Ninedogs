@@ -1,5 +1,6 @@
 import 'billing_cycle.dart';
 import 'money.dart';
+import '../sync/contract.dart';
 
 /// [Subscription.copyWith] 에서 "이 필드를 이 값으로 바꿔라"를 감싸는 봉투.
 ///
@@ -488,6 +489,7 @@ class Subscription {
   );
 
   Map<String, Object?> toJson() => {
+    'cv': kContractVersion,
     'id': id,
     'serviceId': serviceId,
     'name': name,
