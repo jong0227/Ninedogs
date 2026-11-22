@@ -1,30 +1,27 @@
 rules_version = '2';
 
-// Ninedogs Firestore 보안 규칙
-//
-// Firebase 콘솔 > Firestore Database > 규칙 에 그대로 붙여넣고 게시한다.
+// ※ 사본이다. 배포 원본은 family_finance 저장소의 firestore.rules (거기서 배포한다).
+
+
 //
 // 원칙
-//  - 로그인하지 않으면 아무것도 못 읽고 못 쓴다
-//  - household 안의 데이터는 그 household 구성원만 본다
-//  - 초대 코드를 아는 사람만 들어올 수 있다. 목록을 훑을 수는 없다
+//  - 구글 계정으로 로그인한 사람만 (2026-11-22 Ninedogs 도 구글 로그인으로 통합. 익명 접속은 막음)
+//  - household 안의 데이터(구독·계정·금고·가계)는 그 household 구성원만 본다
+//  - 초대 코드를 아는 사람만 들어올 수 있다. 코드 목록을 훑을 수는 없다
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() {
-      return request.auth != null;
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
     }
 
     function isMemberOf(householdId) {
       return signedIn() && request.auth.uid in
-        get(/databases/$(database)/documents/households/$(householdId))
-          .data.memberUids;
+        get(/databases/$(database)/documents/households/$(householdId)).data.memberUids;
     }
 
-    // 초대 코드 -> household id.
-    //
-    // get 만 허용하고 list 는 막는다. 코드를 정확히 아는 사람만 한 건을
-    // 집어올 수 있고, 전체를 훑어 남의 코드를 알아낼 수는 없다.
+    // 초대 코드 -> household id. get 만 허용, list 금지.
     match /inviteCodes/{code} {
       allow get: if signedIn();
       allow list: if false;
@@ -40,11 +37,7 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.auth.uid in request.resource.data.memberUids;
 
-      // 구성원은 자유롭게 고칠 수 있다.
-      //
-      // 아직 구성원이 아닌 사람은 '자기 uid 를 추가하는 변경'만 허용한다.
-      // household id 는 무작위 문자열이고 초대 코드를 통해서만 알 수 있으므로
-      // 사실상 코드를 아는 사람만 들어온다.
+      // 구성원은 고칠 수 있다. 아직 구성원이 아닌 사람은 '자기 uid 하나를 추가하는 변경'만.
       allow update: if isMemberOf(householdId)
         || (signedIn()
             && request.resource.data.memberUids
@@ -53,7 +46,7 @@ service cloud.firestore {
 
       allow delete: if false;
 
-      // 구독, 계정 정보, 금고 메타데이터
+      // 구독·계정 정보·금고·사람 이름·기기 기록·가계 데이터
       match /{document=**} {
         allow read, write: if isMemberOf(householdId);
       }
