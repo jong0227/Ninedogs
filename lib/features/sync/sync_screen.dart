@@ -14,7 +14,7 @@ import '../../providers/sync_providers.dart';
 /// 않으므로, 같은 앱을 친구에게 줘도 서로의 구독이 섞이지 않는다.
 ///
 /// 로그인(이메일·비밀번호)은 없앴다. "먼저 시작하기 → 코드 공유 → 코드 입력"
-/// 세 동작으로 끝난다. 서버 접속은 익명으로 조용히 처리한다([SyncService]).
+/// 세 동작으로 끝난다. 접속은 구글 계정으로 한다(가계부 앱과 같은 계정, [SyncService]).
 class SyncScreen extends ConsumerStatefulWidget {
   const SyncScreen({super.key});
 

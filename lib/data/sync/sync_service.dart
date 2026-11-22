@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'contract.dart';
+import 'firebase_ids.dart';
 import 'household.dart';
 
 /// 동기화 과정에서 사용자에게 보여줄 수 있는 실패들.
@@ -38,6 +40,10 @@ class SyncService {
   String? get email => _auth.currentUser?.email;
   bool get isSignedIn => _auth.currentUser != null;
 
+  /// 구글 계정으로 들어와 있는지. 가족 연결은 구글 계정으로만 한다(family_finance 와 통합).
+  bool get isGoogle =>
+      _auth.currentUser?.providerData.any((p) => p.providerId == 'google.com') ?? false;
+
   Stream<User?> get authChanges => _auth.authStateChanges();
 
   CollectionReference<Map<String, dynamic>> get _households =>
@@ -57,12 +63,59 @@ class SyncService {
   ///
   /// 대신 앱을 지웠다 다시 깔면 uid 가 바뀐다. 그때는 초대 코드로 다시 들어오면
   /// 되고, 코드는 연결된 화면에서 언제든 확인할 수 있다.
+  bool _googleReady = false;
+
+  /// 구글 계정으로 로그인한다.
+  ///
+  /// 예전엔 익명 로그인이었다. 가계부 앱(family_finance)과 한 계정·한 가족으로 쓰려고
+  /// 구글로 바꿨다. 이미 익명으로 들어와 있으면 그 계정에 구글을 **연결**해서 uid 를
+  /// 그대로 둔다(가족 구성원 목록이 안 바뀜). 그 구글 계정이 이미 다른 앱에서 쓰이고
+  /// 있으면(credential-already-in-use) 그 계정으로 갈아탄다 — uid 가 바뀌므로 부르는 쪽이
+  /// 가족에 다시 들어가야 한다([upgradeToGoogle]).
   Future<void> ensureSignedIn() async {
-    if (_auth.currentUser != null) return;
+    if (isGoogle) return;
     try {
-      await _auth.signInAnonymously();
+      if (!_googleReady) {
+        await GoogleSignIn.instance.initialize(serverClientId: kGoogleServerClientId);
+        _googleReady = true;
+      }
+      final account = await GoogleSignIn.instance.authenticate();
+      final credential = GoogleAuthProvider.credential(
+        idToken: account.authentication.idToken,
+      );
+      final current = _auth.currentUser;
+      if (current != null && current.isAnonymous) {
+        try {
+          await current.linkWithCredential(credential);
+          return;
+        } on FirebaseAuthException catch (e) {
+          if (e.code != 'credential-already-in-use' &&
+              e.code != 'email-already-in-use') {
+            rethrow;
+          }
+        }
+      }
+      await _auth.signInWithCredential(credential);
     } on FirebaseAuthException catch (e) {
       throw SyncException(_readable(e));
+    } on GoogleSignInException catch (e) {
+      throw SyncException(
+        e.code == GoogleSignInExceptionCode.canceled
+            ? '구글 로그인을 취소했어요'
+            : '구글 로그인에 실패했어요 (${e.code.name})',
+      );
+    }
+  }
+
+  /// 이미 가족에 연결된(익명) 기기를 구글 계정으로 바꾼다. uid 가 바뀌면 가족에 다시 들어간다.
+  Future<void> upgradeToGoogle(String householdId) async {
+    if (isGoogle) return;
+    // 아직 익명 구성원일 때 초대 코드를 읽어 둔다(바뀐 계정은 가족 문서를 못 읽을 수 있다).
+    final household = await fetchHousehold(householdId);
+    final before = uid;
+    await ensureSignedIn();
+    if (uid != before && household != null) {
+      await joinHousehold(household.inviteCode);
     }
   }
 
@@ -70,7 +123,7 @@ class SyncService {
 
   static String _readable(FirebaseAuthException e) => switch (e.code) {
     // Firebase 콘솔에서 익명 로그인을 안 켰을 때. 개발자에게 주는 힌트다.
-    'operation-not-allowed' => '연결 기능이 아직 준비되지 않았어요 (익명 로그인 미설정)',
+    'operation-not-allowed' => '연결 기능이 아직 준비되지 않았어요 (로그인 방법 미설정)',
     'network-request-failed' => '네트워크에 연결할 수 없어요',
     'too-many-requests' => '잠시 뒤에 다시 시도해주세요',
     _ => '문제가 생겼어요 (${e.code})',

@@ -278,7 +278,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: Text(
               ref.watch(syncEnabledProvider)
                   ? '한쪽에서 고치면 다른 쪽에도 바로 반영돼요'
-                  : '초대 코드 하나면 끝. 로그인·가입 없이 배우자와 함께 봐요',
+                  : '구글 계정으로 로그인하고 초대 코드로 배우자와 함께 봐요',
               style: theme.textTheme.labelMedium,
             ),
             trailing: Icon(
@@ -292,6 +292,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ).push(MaterialPageRoute(builder: (_) => const SyncScreen())),
           ),
 
+          if (ref.watch(syncEnabledProvider))
+            _GoogleAccountTile(householdId: ref.watch(householdIdProvider)!),
           for (final key in People.slots)
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -608,5 +610,53 @@ Future<void> _renamePerson(BuildContext context, WidgetRef ref, String key) asyn
   controller.dispose();
   if (name != null && name.trim().isNotEmpty) {
     await ref.read(peopleProvider.notifier).rename(key, name);
+  }
+}
+
+/// 구글 계정 연결 상태. 가계부 앱(family_finance)과 한 계정으로 쓰려면 구글로 바꿔야 한다.
+class _GoogleAccountTile extends ConsumerStatefulWidget {
+  const _GoogleAccountTile({required this.householdId});
+  final String householdId;
+
+  @override
+  ConsumerState<_GoogleAccountTile> createState() => _GoogleAccountTileState();
+}
+
+class _GoogleAccountTileState extends ConsumerState<_GoogleAccountTile> {
+  bool _busy = false;
+
+  Future<void> _upgrade() async {
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(syncServiceProvider).upgradeToGoogle(widget.householdId);
+      messenger.showSnackBar(const SnackBar(content: Text('구글 계정으로 바꿨어요')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(authUserProvider);
+    final service = ref.watch(syncServiceProvider);
+    final theme = Theme.of(context);
+    final google = service.isGoogle;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(google ? '구글 계정 연결됨' : '구글 계정으로 바꾸기'),
+      subtitle: Text(
+        google
+            ? (service.email ?? '')
+            : '가계부 앱과 같은 계정·같은 가족으로 써요. 지금 데이터는 그대로예요',
+        style: theme.textTheme.labelMedium,
+      ),
+      trailing: _busy
+          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+          : Icon(google ? Icons.verified_user_outlined : Icons.login),
+      onTap: google || _busy ? null : _upgrade,
+    );
   }
 }

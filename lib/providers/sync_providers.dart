@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/diagnostics.dart';
@@ -9,6 +10,15 @@ import '../data/sync/sync_service.dart';
 import 'app_providers.dart';
 
 final syncServiceProvider = Provider<SyncService>((ref) => SyncService());
+
+/// 로그인 상태(구글 연결 여부를 화면에 보여 주려고). Firebase 가 없으면 null 한 번.
+final authUserProvider = StreamProvider<User?>((ref) {
+  try {
+    return ref.watch(syncServiceProvider).authChanges;
+  } catch (_) {
+    return Stream.value(null);
+  }
+});
 
 /// 연결된 household id. null 이면 이 기기에만 저장한다(기본값).
 ///
