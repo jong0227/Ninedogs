@@ -1,5 +1,5 @@
 name: ninedogs_core
-description: Ninedogs와 family_finance가 함께 쓰는 구독 데이터 계약(모델·직렬화·카탈로그·금고 암호화). Flutter·Firebase·Riverpod에 의존하지 않는다.
+description: Shared subscription data contract (models, codecs, catalog, vault crypto) for Ninedogs and family_finance. No Flutter, Firebase or Riverpod dependency.
 version: 1.0.0
 publish_to: none
 
