@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import 'form_fields.dart';
+import '../../core/theme/person_colors.dart';
 import '../../core/format/formatters.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -608,7 +609,7 @@ class _OwnerPicker extends ConsumerWidget {
       spacing: AppSpacing.sm,
       children: [
         for (final key in People.slots)
-          chip(key, people.nameOf(key), People.colorOf(key)),
+          chip(key, people.nameOf(key), personColor(key)),
         chip(null, '공동', null),
       ],
     );

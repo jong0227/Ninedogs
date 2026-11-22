@@ -33,11 +33,10 @@ void main() {
     expect(s.copyWith(name: 'x').owner, 'a');
   });
 
-  test('사람 이름은 비어 있으면 기본값, 색은 칸에 고정', () {
+  test('사람 이름은 비어 있으면 기본값', () {
     final p = People.fromJson({'names': {'a': '가나', 'b': '  '}});
     expect(p.nameOf('a'), '가나');
     expect(p.nameOf('b'), People.defaults.nameOf('b'));
     expect(People.fromJson(null).nameOf('a'), People.defaults.nameOf('a'));
-    expect(People.colorOf('a'), isNot(People.colorOf('b')));
   });
 }

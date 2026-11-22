@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/theme/person_colors.dart';
 import '../../core/distribution.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -296,7 +297,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               contentPadding: EdgeInsets.zero,
               leading: CircleAvatar(
                 radius: 6,
-                backgroundColor: People.colorOf(key),
+                backgroundColor: personColor(key),
               ),
               minLeadingWidth: 12,
               title: Text(ref.watch(peopleProvider).nameOf(key)),

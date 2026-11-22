@@ -677,6 +677,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  ninedogs_core:
+    dependency: "direct main"
+    description:
+      path: "packages/ninedogs_core"
+      relative: true
+    source: path
+    version: "1.0.0"
   node_preamble:
     dependency: transitive
     description:

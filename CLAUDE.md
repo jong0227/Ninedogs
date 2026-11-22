@@ -14,7 +14,7 @@
 4. 클릭 몇 번으로 기록이 끝나는 편의성 ✅
 5. 가격 변동, 시작일 / 이용 권한 만료일 / 카드 결제일 ✅
 6. 앱별 누적 지출 + 전체 누적 지출 ✅
-7. 부부가 같은 데이터를 공유 ✅ (Firebase 설정 필요, 아래 참고)
+7. 부부가 같은 데이터를 공유 ✅ (2026-11-22 Firestore 생성·규칙 게시로 실제 동작 시작)
 8. 서비스별 아이디/비밀번호 기록 ✅ (암호화)
 
 이후 추가된 것: 분야별 통계, 결제 캘린더, 결제 예정 알림, 백업/복원,
@@ -59,6 +59,19 @@ lib/
     vault/ notifications/ backup/ sync/ settings/
   widgets/             ServiceIcon, ServiceBrowser
 ```
+
+## family_finance 와 공존 (2026-11-22~)
+
+가계부 앱 `C:\devamily_finance`(github.com/jong0227/family_finance)가 **같은 Firebase(ninedogs-b2628)·같은 household** 의
+구독·계정·금고 문서를 읽고 쓴다. 어느 앱에서 고쳐도 다른 앱에 반영된다.
+
+- 공유 모델·직렬화·카탈로그·금고 암호화는 **`packages/ninedogs_core`** 한 곳. 앱의 `lib/data/models/*` 등은 이 패키지를
+  다시 내보내는 얇은 파일이다. family_finance 는 git 태그(`ninedogs_core-vX.Y.Z`)로 의존한다.
+- 저장은 **바뀐 문서만 쓰고, 이 기기가 본 적 있는데 목록에서 빠진 문서만 지운다**(`KnownDocs`). 쓰기는 merge.
+- 문서 모양의 의미를 바꾸거나 필드를 없앨 때만 `kContractVersion` 을 올린다. 모르는 높은 `cv` 를 보면 쓰지 않는다.
+- 각 기기는 `meta/clients` 에 앱·버전·cv 를 남긴다. 구독 주인은 `owner`(a/b), 이름은 `meta/people`.
+- **보안 규칙 배포 원본은 family_finance 저장소의 `firestore.rules`** 로 옮길 예정(그 전까지는 이 저장소 것이 원본).
+- 카드사 알림 파싱은 Ninedogs 에는 넣지 않는다. family_finance 가 맡는다.
 
 ## 꼭 알아야 할 설계 결정
 
